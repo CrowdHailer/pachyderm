@@ -1,6 +1,22 @@
 # Lottery
 
-**TODO: Add description**
+**Experiments with CQRS**
+
+f(state, command) -> [events...]
+f(state, [events]) -> new_state
+
+A lottery has
+- Id
+- many participants
+- possible a winner
+
+
+Invarients for property testing.
+
+- number of participants should always be 1 greater after command to add participant
+- participant should always be in the list after being added
+
+
 
 ## Installation
 
@@ -17,4 +33,3 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         def application do
           [applications: [:lottery]]
         end
-
