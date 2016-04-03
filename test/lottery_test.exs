@@ -11,6 +11,16 @@ defmodule LotteryCorp do
     }
   end
 
+  def add_player(state, command) do
+    {:ok, game} = Keyword.fetch(command, :game)
+    {:ok, player} = Keyword.fetch(command, :player)
+    %{id: game_id} = game
+    {:ok, {
+      [{1, :"game/player", player, true}],
+      %{transaction: 2}}
+    }
+  end
+
   defmodule State do
     defstruct games: []
     def apply_events(state, []) do
@@ -22,6 +32,7 @@ defmodule LotteryCorp do
     end
 
     def apply_event(state, {_entity, :"game/name", name, true}) do
+      # FIXME: game id should be entity id and match event
       game = LotteryCorp.Game.create(name)
       %{state | games: state.games ++ [game]}
     end
@@ -65,7 +76,7 @@ defmodule LotteryTest do
     [] = LotteryCorp.Game.players(game)
     # assert on game
 
-    # {:ok, {events, _meta}} = LotteryCorp.add_player(state, game: game, player: "Bob")
+    {:ok, {events, _meta}} = LotteryCorp.add_player(state, game: game, player: "Bob")
     # # If using actor shouldn't need to respond with transaction??
     # :accepted = LotteryCorp.add_player(actor, game: game, player: "Bob")
     # # {:denied, reason}
