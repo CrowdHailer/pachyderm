@@ -76,7 +76,7 @@ defmodule LotteryTest do
     [] = LotteryCorp.Game.players(game)
     # assert on game
 
-    {:ok, {events, _meta}} = LotteryCorp.add_player(state, game: game, player: "Bob")
+    {:ok, {_events, _meta}} = LotteryCorp.add_player(state, game: game, player: "Bob")
     # # If using actor shouldn't need to respond with transaction??
     # :accepted = LotteryCorp.add_player(actor, game: game, player: "Bob")
     # # {:denied, reason}
