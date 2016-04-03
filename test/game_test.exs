@@ -75,9 +75,10 @@ defmodule GameTest do
       {:ok, %Game.State{}}
     end
 
-    def handle_call(command, _from, state) do
+    def handle_call(command, from = {pid, _ref}, state) do
       case State.issue_command(command, state) do
         {:ok, events} ->
+          send(pid, events)
           # {:ok, transaction_id} = EventStore.store(events)
           {:ok, new_state} = State.apply_events(events, state)
           {:reply, {:ok, :transaction_id}, new_state}
@@ -109,5 +110,11 @@ defmodule GameTest do
     IO.inspect reason
     {:error, reason} = Game.add_player(game, "George")
     IO.inspect reason
+    receive do
+      e -> IO.inspect(e)
+    end
+    # Put all events in a projection
+    # TODO add time so that we can properly analyse
+    # HAve event library take clock as dependency
   end
 end
