@@ -3,21 +3,27 @@ defmodule GameTest do
   defmodule Game do
     defmodule State do
       defstruct winner: :none, players: []
-      def issue_command({:add_player, player}, %{players: players}) do
+      def issue_command({:add_player, player}, %{players: players, winner: :none}) do
         case Enum.member?(players, player) do
           true -> {:ok, []}
           false -> {:ok, [{:added_player, player}]}
         end
       end
-      def issue_command({:remove_player, player}, %{players: players}) do
+      def issue_command({:remove_player, player}, %{players: players, winner: :none}) do
         case Enum.member?(players, player) do
           true -> {:ok, [{:removed_player, player}]}
           false -> {:ok, []}
         end
       end
-      def issue_command({:pick_winner, _seed}, %{players: players}) do
+      def issue_command({:pick_winner, _seed}, %{players: []}) do
+        {:error, :no_players_to_win}
+      end
+      def issue_command({:pick_winner, _seed}, %{players: players, winner: :none}) do
         winner = Enum.random(players)
         {:ok, [{:picked_winner, winner}]}
+      end
+      def issue_command(command, %{winner: winner}) do
+        {:error, :lottery_closed}
       end
 
       def apply_events([event | rest], state) do
@@ -36,7 +42,7 @@ defmodule GameTest do
         IO.inspect(event)
         %{state | players: Enum.filter(players, fn(p) -> p != player end)}
       end
-      def apply_event(event = {:picked_winner, winner}, state) do
+      def apply_event(event = {:picked_winner, winner}, state = %{winner: :none}) do
         IO.inspect(event)
         %{state | winner: winner}
       end
@@ -68,12 +74,16 @@ defmodule GameTest do
       # needs to set up an agregate id with event store
       {:ok, %Game.State{}}
     end
-    
+
     def handle_call(command, _from, state) do
-      {:ok, events} = State.issue_command(command, state)
-      # {:ok, transaction_id} = EventStore.store(events)
-      {:ok, new_state} = State.apply_events(events, state)
-      {:reply, {:ok, :transaction_id}, new_state}
+      case State.issue_command(command, state) do
+        {:ok, events} ->
+          # {:ok, transaction_id} = EventStore.store(events)
+          {:ok, new_state} = State.apply_events(events, state)
+          {:reply, {:ok, :transaction_id}, new_state}
+        {:error, reason} ->
+          {:reply, {:error, reason}, state}
+      end
     end
   end
 
@@ -83,12 +93,21 @@ defmodule GameTest do
     # assert :none == Game.winner(game)
     # assert [] == Game.players
 
-    {:ok, _transaction_id} = Game.add_player(game, "Bill")
-    # IO.inspect transaction_id
-    _events = Game.add_player(game, "Dan")
-    _events = Game.add_player(game, "Dan")
-    _events = Game.remove_player(game, "Bill")
-    _events = Game.remove_player(game, "Kieth")
-    _events = Game.pick_winner(game) # randomiser
+    {:error, reason} = Game.pick_winner(game) # randomiser
+    IO.inspect reason
+    {:ok, _t} = Game.add_player(game, "Adam")
+    {:ok, _t} = Game.add_player(game, "Bill")
+    {:ok, _t} = Game.add_player(game, "Clive")
+    {:ok, _t} = Game.add_player(game, "Clive")
+    {:ok, _t} = Game.add_player(game, "Dan")
+    {:ok, _t} = Game.remove_player(game, "Dan")
+    {:ok, _t} = Game.remove_player(game, "Edward")
+    {:ok, _t} = Game.pick_winner(game) # randomiser
+    {:error, reason} = Game.pick_winner(game) # randomiser
+    IO.inspect reason
+    {:error, reason} = Game.add_player(game, "Fred")
+    IO.inspect reason
+    {:error, reason} = Game.add_player(game, "George")
+    IO.inspect reason
   end
 end
