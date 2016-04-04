@@ -15,6 +15,6 @@ defmodule Lottery.EventStore do
     {:reply, {:ok, count}, {count + 1, events ++ [uuid, new]}}
   end
   def handle_call({:add_events, {uuid, []}}, _from, {count, events}) do
-    {:reply, {:ok, 1}, {count + 1, events}}
+    {:reply, {:ok, count}, {count + 1, events}}
   end
 end
