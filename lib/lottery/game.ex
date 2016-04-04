@@ -1,10 +1,10 @@
 defmodule Lottery.Game do
   defmodule State do
-    defstruct winner: :none, players: []
+    defstruct winner: :none, players: [], uuid: :none
 
     def issue_command({:add_player, player}, %{players: players, winner: :none}) do
       case Enum.member?(players, player) do
-        true -> {:ok, []}
+        true -> IO.inspect{:ok, []}
         false -> {:ok, [{:added_player, player}]}
       end
     end
@@ -27,7 +27,6 @@ defmodule Lottery.Game do
 
     def apply_events([event | rest], state) do
       new_state = apply_event(event, state)
-      IO.inspect(event)
       apply_events(rest, new_state)
     end
     def apply_events([], state) do
@@ -46,9 +45,9 @@ defmodule Lottery.Game do
   end
   use GenServer
 
-  def start_link do
+  def start_link(uuid) do
     # Should be game id
-    GenServer.start_link(__MODULE__, :new_state)
+    GenServer.start_link(__MODULE__, uuid)
   end
 
   def add_player(game, player) do
@@ -67,16 +66,15 @@ defmodule Lottery.Game do
     GenServer.call(game, command)
   end
 
-  def init(:new_state) do
+  def init(uuid) do
     # needs to set up an agregate id with event store
-    {:ok, %Lottery.Game.State{}}
+    {:ok, %Lottery.Game.State{uuid: uuid}}
   end
 
-  def handle_call(command, from = {pid, _ref}, state) do
+  def handle_call(command, from = {pid, _ref}, state= %{uuid: uuid}) do
     case State.issue_command(command, state) do
       {:ok, events} ->
-        send(pid, events)
-        # {:ok, transaction_id} = EventStore.store(events)
+        {:ok, transaction_id} = Lottery.EventStore.add_events(Lottery.EventStore, {uuid, events})
         {:ok, new_state} = State.apply_events(events, state)
         {:reply, {:ok, :transaction_id}, new_state}
       {:error, reason} ->

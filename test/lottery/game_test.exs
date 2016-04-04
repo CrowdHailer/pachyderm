@@ -4,7 +4,7 @@ defmodule Lottery.GameTest do
 
 
   test "game" do
-    {:ok, game} = Game.start_link # pass ev store/ start_link
+    {:ok, game} = Game.start_link(make_ref) # pass ev store/ start_link
     # These methods belong on a projection
     # assert :none == Game.winner(game)
     # assert [] == Game.players
@@ -25,9 +25,6 @@ defmodule Lottery.GameTest do
     IO.inspect reason
     {:error, reason} = Game.add_player(game, "George")
     IO.inspect reason
-    receive do
-      e -> IO.inspect(e)
-    end
     # Put all events in a projection
     # TODO add time so that we can properly analyse
     # HAve event library take clock as dependency
