@@ -9,6 +9,7 @@ defmodule Lottery do
     children = [
       # Define workers and child supervisors to be supervised
       worker(Lottery.EventStore, []),
+      worker(Lottery.Game.Registry, []),
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
