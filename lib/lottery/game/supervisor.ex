@@ -6,7 +6,7 @@ defmodule Lottery.Game.Supervisor do
   end
 
   def start_game(supervisor) do
-    Supervisor.start_child(supervisor, [])
+    Supervisor.start_child(supervisor, [Lottery.EventStore])
   end
 
   def init(:ok) do

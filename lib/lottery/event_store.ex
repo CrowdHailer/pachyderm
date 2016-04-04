@@ -1,20 +1,15 @@
 defmodule Lottery.EventStore do
   use GenServer
 
-  def start_link do
-    GenServer.start_link(__MODULE__, {0, []}, [name: __MODULE__])
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, [], opts)
   end
 
-  # CALL transaction
-  def add_events(store, events) do
-    GenServer.call(store, {:add_events, events})
+  def store(store, uuid, event) do
+    GenServer.call(store, {:store, uuid, event})
   end
-
-  def handle_call({:add_events, {uuid, [new]}}, _from, {count, events}) do
-    IO.inspect(events)
-    {:reply, {:ok, count}, {count + 1, events ++ [uuid, new]}}
-  end
-  def handle_call({:add_events, {uuid, []}}, _from, {count, events}) do
-    {:reply, {:ok, count}, {count + 1, events}}
+  def handle_call({:store, ref, event}, _f, log) do
+    log = [event | log]
+    {:reply, Enum.count(log), log}
   end
 end

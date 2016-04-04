@@ -4,14 +4,14 @@ defmodule Lottery.Game do
 
     def issue_command({:add_player, player}, %{players: players, winner: :none}) do
       case Enum.member?(players, player) do
-        true -> IO.inspect{:ok, []}
-        false -> {:ok, [{:added_player, player}]}
+        true -> {:ok, :no_change}
+        false -> {:ok, {:added_player, player}}
       end
     end
     def issue_command({:remove_player, player}, %{players: players, winner: :none}) do
       case Enum.member?(players, player) do
-        true -> {:ok, [{:removed_player, player}]}
-        false -> {:ok, []}
+        true -> {:ok, {:removed_player, player}}
+        false -> {:ok, :no_change}
       end
     end
     def issue_command({:pick_winner, _seed}, %{players: []}) do
@@ -19,18 +19,10 @@ defmodule Lottery.Game do
     end
     def issue_command({:pick_winner, _seed}, %{players: players, winner: :none}) do
       winner = Enum.random(players)
-      {:ok, [{:picked_winner, winner}]}
+      {:ok, {:picked_winner, winner}}
     end
-    def issue_command(command, %{winner: winner}) do
+    def issue_command(_command, %{winner: _winner}) do
       {:error, :lottery_closed}
-    end
-
-    def apply_events([event | rest], state) do
-      new_state = apply_event(event, state)
-      apply_events(rest, new_state)
-    end
-    def apply_events([], state) do
-      {:ok, state}
     end
 
     def apply_event({:added_player, player}, state = %{players: players}) do
@@ -42,12 +34,15 @@ defmodule Lottery.Game do
     def apply_event({:picked_winner, winner}, state = %{winner: :none}) do
       %{state | winner: winner}
     end
+    def apply_event(:no_change, state) do
+      state
+    end
   end
   use GenServer
 
-  def start_link(uuid) do
+  def start_link(uuid, event_store) do
     # Should be game id
-    GenServer.start_link(__MODULE__, uuid)
+    GenServer.start_link(__MODULE__, {uuid, event_store})
   end
 
   def add_player(game, player) do
@@ -66,19 +61,19 @@ defmodule Lottery.Game do
     GenServer.call(game, command)
   end
 
-  def init(uuid) do
+  def init({uuid, event_store}) do
     # needs to set up an agregate id with event store
-    {:ok, %Lottery.Game.State{uuid: uuid}}
+    {:ok, {%Lottery.Game.State{uuid: uuid}, event_store}}
   end
 
-  def handle_call(command, from = {pid, _ref}, state= %{uuid: uuid}) do
+  def handle_call(command, _from, {state = %{uuid: uuid}, event_store}) do
     case State.issue_command(command, state) do
-      {:ok, events} ->
-        {:ok, transaction_id} = Lottery.EventStore.add_events(Lottery.EventStore, {uuid, events})
-        {:ok, new_state} = State.apply_events(events, state)
-        {:reply, {:ok, :transaction_id}, new_state}
+      {:ok, event} ->
+        transaction = Lottery.EventStore.store(event_store, uuid, event)
+        new_state = State.apply_event(event, state)
+        {:reply, {:ok, transaction}, {new_state, event_store}}
       {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        {:reply, {:error, reason}, {state, event_store}}
     end
   end
 end
