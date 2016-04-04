@@ -2,7 +2,9 @@ defmodule Lottery.GameTest do
   use ExUnit.Case
   alias Lottery.Game
 
-
+  test "should start with no players" do
+    
+  end
   test "game" do
     {:ok, game} = Game.start_link(make_ref) # pass ev store/ start_link
     # These methods belong on a projection

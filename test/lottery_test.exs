@@ -8,6 +8,13 @@ defmodule LotteryTest do
     # Lottery.add_player(make_ref, "Adam")
   end
 
+  test "Supervisor" do
+    {:ok, sup} = Lottery.Game.Supervisor.start_link([])
+    {:ok, game} = Lottery.Game.Supervisor.start_game(sup)
+    {:ok, t} = Lottery.Game.add_player(game, "Zane")
+    IO.inspect(t)
+  end
+
 
   # Test the game registry
   # - when it creates a game then the number of children on the game supervisor should go up by one
