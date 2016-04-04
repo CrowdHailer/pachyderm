@@ -14,5 +14,6 @@ defmodule LotteryTest do
   # - it should register under its module name in global
   # - it should return the same pid after registering(this is only requrement as addind to supervisor is incidental)
   #  - Added to supervisor is not with the intention of restarting
-  # - 
+  # - registry needs to call event store with name
+  # - spinning up a game if there is no initial event should fail
 end
