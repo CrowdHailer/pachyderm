@@ -1,12 +1,12 @@
-defmodule Lottery.GameTest do
+defmodule LotteryCorp.Operations.GameTest do
   use ExUnit.Case
-  alias Lottery.Game
+  alias LotteryCorp.Operations.Game
 
   test "should start with no players" do
 
   end
   test "game" do
-    {:ok, store} = Lottery.EventStore.start_link([])
+    {:ok, store} = LotteryCorp.Operations.EventStore.start_link([])
     {:ok, game} = Game.start_link(make_ref, store) # pass ev store/ start_link
     # These methods belong on a projection
     # assert :none == Game.winner(game)

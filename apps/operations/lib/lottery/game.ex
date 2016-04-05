@@ -1,4 +1,4 @@
-defmodule Lottery.Game do
+defmodule LotteryCorp.Operations.Game do
   defmodule State do
     defstruct winner: :none, players: [], uuid: :none
 
@@ -63,13 +63,13 @@ defmodule Lottery.Game do
 
   def init({uuid, event_store}) do
     # needs to set up an agregate id with event store
-    {:ok, {%Lottery.Game.State{uuid: uuid}, event_store}}
+    {:ok, {%LotteryCorp.Operations.Game.State{uuid: uuid}, event_store}}
   end
 
   def handle_call(command, _from, {state = %{uuid: uuid}, event_store}) do
     case State.issue_command(command, state) do
       {:ok, event} ->
-        transaction = Lottery.EventStore.store(event_store, uuid, event)
+        transaction = LotteryCorp.Operations.EventStore.store(event_store, uuid, event)
         new_state = State.apply_event(event, state)
         {:reply, {:ok, transaction}, {new_state, event_store}}
       {:error, reason} ->

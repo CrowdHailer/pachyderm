@@ -1,4 +1,4 @@
-defmodule Lottery.EventStore do
+defmodule LotteryCorp.Operations.EventStore do
   use GenServer
 
   def start_link(opts) do

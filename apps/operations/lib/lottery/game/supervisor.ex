@@ -1,4 +1,4 @@
-defmodule Lottery.Game.Supervisor do
+defmodule LotteryCorp.Operations.Game.Supervisor do
   use Supervisor
 
   def start_link(opts) do
@@ -6,12 +6,12 @@ defmodule Lottery.Game.Supervisor do
   end
 
   def start_game(supervisor) do
-    Supervisor.start_child(supervisor, [Lottery.EventStore])
+    Supervisor.start_child(supervisor, [LotteryCorp.Operations.EventStore])
   end
 
   def init(:ok) do
     children = [
-      worker(Lottery.Game, [:uuid], restart: :temporary)
+      worker(LotteryCorp.Operations.Game, [:uuid], restart: :temporary)
     ]
 
     supervise(children, strategy: :simple_one_for_one)

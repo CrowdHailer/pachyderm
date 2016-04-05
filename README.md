@@ -1,4 +1,4 @@
-# Lottery
+# LotteryCorp
 
 **Experiments with CQRS**
 

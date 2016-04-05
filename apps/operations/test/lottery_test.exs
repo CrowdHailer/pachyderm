@@ -3,15 +3,15 @@ defmodule LotteryTest do
   # doctest LotteryCorp
 
   test "Add player to game" do
-    {:ok, game_id} = Lottery.create_game()
-    Lottery.add_player(game_id, "Mick")
-    # Lottery.add_player(make_ref, "Adam")
+    {:ok, game_id} = LotteryCorp.Operations.create_game()
+    LotteryCorp.Operations.add_player(game_id, "Mick")
+    # LotteryCorp.Operations.add_player(make_ref, "Adam")
   end
 
   test "Supervisor" do
-    {:ok, sup} = Lottery.Game.Supervisor.start_link([])
-    {:ok, game} = Lottery.Game.Supervisor.start_game(sup)
-    {:ok, t} = Lottery.Game.add_player(game, "Zane")
+    {:ok, sup} = LotteryCorp.Operations.Game.Supervisor.start_link([])
+    {:ok, game} = LotteryCorp.Operations.Game.Supervisor.start_game(sup)
+    {:ok, t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
     IO.inspect(t)
   end
 

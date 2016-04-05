@@ -1,4 +1,4 @@
-defmodule Lottery.Game.Registry do
+defmodule LotteryCorp.Operations.Game.Registry do
   use GenServer
 
   def start_link do
