@@ -5,7 +5,7 @@ defmodule LotteryCorp.Operations.Game.Supervisor do
     Supervisor.start_link(__MODULE__, :ok, opts)
   end
 
-  def start_game(supervisor) do
+  def start_game(supervisor, game_id) do
     Supervisor.start_child(supervisor, [LotteryCorp.Operations.EventStore])
   end
 

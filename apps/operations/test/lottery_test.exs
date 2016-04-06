@@ -10,7 +10,14 @@ defmodule LotteryTest do
 
   test "Supervisor" do
     {:ok, sup} = LotteryCorp.Operations.Game.Supervisor.start_link([])
-    {:ok, game} = LotteryCorp.Operations.Game.Supervisor.start_game(sup)
+    {:ok, game} = LotteryCorp.Operations.Game.Supervisor.start_game(sup, 1202)
+    {:ok, t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
+    IO.inspect(t)
+  end
+
+  test "Registry" do
+    # {:ok, registry} = LotteryCorp.Operations.Game.Registry.start_link()
+    {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, 100)
     {:ok, t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
     IO.inspect(t)
   end

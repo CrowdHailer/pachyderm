@@ -8,7 +8,7 @@ defmodule LotteryCorp.Operations do
       # Define workers and child supervisors to be supervised
       worker(LotteryCorp.Operations.EventStore, [[name: LotteryCorp.Operations.EventStore]]),
       worker(LotteryCorp.Operations.Game.Supervisor, [[name: LotteryCorp.Operations.Game.Supervisor]]),
-      worker(LotteryCorp.Operations.Game.Registry, []),
+      worker(LotteryCorp.Operations.Game.Registry, [LotteryCorp.Operations.Game.Supervisor]),
     ]
 
     opts = [strategy: :one_for_one, name: LotteryCorp.Operations.Supervisor]
@@ -17,13 +17,12 @@ defmodule LotteryCorp.Operations do
 
   def create_game do
     ref = make_ref
-    {:ok, pid} = LotteryCorp.Operations.Game.Supervisor.start_game(LotteryCorp.Operations.Game.Supervisor)
-    :global.register_name(ref, pid)
+    LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, ref)
     {:ok, ref}
   end
 
   def add_player(ref, player) do
-    pid = :global.whereis_name(ref)
-    LotteryCorp.Operations.Game.add_player(pid, player)
+    {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, ref)
+    LotteryCorp.Operations.Game.add_player(game, player)
   end
 end
