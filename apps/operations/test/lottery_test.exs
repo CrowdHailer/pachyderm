@@ -5,7 +5,6 @@ defmodule LotteryTest do
   test "Add player to game" do
     {:ok, game_id} = LotteryCorp.Operations.create_game()
     LotteryCorp.Operations.add_player(game_id, "Mick")
-    # LotteryCorp.Operations.add_player(make_ref, "Adam")
   end
 
   test "Supervisor" do
