@@ -1,8 +1,8 @@
 <a href="/">home</a>
 
-<h1>Game <%= @id %></h1>
+<h1>Game <%= uuid @game_state %></h1>
 
 <ul>
-  <li> Winner: </li>
-  <li> Players: </li>
+  <li> Winner: <%= @game_state.winner %></li>
+  <li> Players: <%= @game_state.players %></li>
 </ul>

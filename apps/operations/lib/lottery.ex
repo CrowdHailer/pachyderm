@@ -26,6 +26,11 @@ defmodule LotteryCorp.Operations do
     LotteryCorp.Operations.Game.add_player(game, player)
   end
 
+  def get_game(id) do
+    {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, id)
+    {:ok, state} = LotteryCorp.Operations.Game.get_state(game)
+  end
+
   # http://stackoverflow.com/questions/32001606/how-to-generate-a-random-url-safe-string-with-elixir
   def random_string(length) do
     :crypto.strong_rand_bytes(length) |> Base.url_encode64 |> binary_part(0, length)

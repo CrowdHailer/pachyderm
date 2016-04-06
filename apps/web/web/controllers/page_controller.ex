@@ -6,10 +6,12 @@ defmodule LotteryCorp.Web.PageController do
   end
 
   def open_game(conn, _params) do
-    redirect conn, to: "/operations/games/56473829"
+    redirect conn, to: "/operations/games/1"
   end
 
   def view_game(conn, %{"id" => id}) do
-    render conn, "game.html", id: id
+    {:ok, game_state} = LotteryCorp.Operations.get_game(id)
+    IO.inspect(game_state)
+    render conn, "game.html", game_state: game_state
   end
 end

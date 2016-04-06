@@ -61,11 +61,19 @@ defmodule LotteryCorp.Operations.Game do
     GenServer.call(game, command)
   end
 
+  def get_state(game) do
+    GenServer.call(game, :get_state)
+  end
+
   def init({uuid, event_store}) do
+    IO.inspect(uuid)
     # needs to set up an agregate id with event store
     {:ok, {%LotteryCorp.Operations.Game.State{uuid: uuid}, event_store}}
   end
 
+  def handle_call(:get_state, _from, {state, event_store}) do
+    {:reply, {:ok, state}, {state, event_store}}
+  end
   def handle_call(command, _from, {state = %{uuid: uuid}, event_store}) do
     case State.issue_command(command, state) do
       {:ok, event} ->

@@ -6,12 +6,13 @@ defmodule LotteryCorp.Operations.Game.Supervisor do
   end
 
   def start_game(supervisor, game_id) do
-    Supervisor.start_child(supervisor, [LotteryCorp.Operations.EventStore])
+    Supervisor.start_child(supervisor, [game_id, LotteryCorp.Operations.EventStore])
   end
 
   def init(:ok) do
+    # Note the args passed to worker spec are appended with args added as superviror start args
     children = [
-      worker(LotteryCorp.Operations.Game, [:uuid], restart: :temporary)
+      worker(LotteryCorp.Operations.Game, [], restart: :temporary)
     ]
 
     supervise(children, strategy: :simple_one_for_one)

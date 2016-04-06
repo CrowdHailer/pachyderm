@@ -5,6 +5,8 @@ defmodule LotteryTest do
   test "Add player to game" do
     {:ok, game_id} = LotteryCorp.Operations.create_game()
     LotteryCorp.Operations.add_player(game_id, "Mick")
+    {:ok, game_state} = LotteryCorp.Operations.get_game(game_id)
+    IO.inspect(game_state)
   end
 
   test "Supervisor" do
