@@ -6,3 +6,18 @@
   <li> Winner: <%= @game_state.winner %></li>
   <li> Players: <%= @game_state.players %></li>
 </ul>
+
+<form class="" action="/operations/add_player" method="post">
+  <input type="hidden" name="game_id" value="<%= @game_state.uuid %>">
+  <input type="text" name="player" value="">
+  <button type="submit">Add player</button>
+</form>
+<form class="" action="/operations/remove_player" method="post">
+  <input type="hidden" name="game_id" value="<%= @game_state.uuid %>">
+  <input type="text" name="player" value="">
+  <button type="submit">Remove player</button>
+</form>
+<form class="" action="/operations/pick_winner" method="post">
+  <input type="hidden" name="game_id" value="<%= @game_state.uuid %>">
+  <button type="submit">Pick Winner</button>
+</form>

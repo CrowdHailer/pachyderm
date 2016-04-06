@@ -26,6 +26,16 @@ defmodule LotteryCorp.Operations do
     LotteryCorp.Operations.Game.add_player(game, player)
   end
 
+  def remove_player(ref, player) do
+    {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, ref)
+    LotteryCorp.Operations.Game.remove_player(game, player)
+  end
+
+  def pick_winner(ref) do
+    {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, ref)
+    LotteryCorp.Operations.Game.pick_winner(game)
+  end
+
   def get_game(id) do
     {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, id)
     {:ok, state} = LotteryCorp.Operations.Game.get_state(game)

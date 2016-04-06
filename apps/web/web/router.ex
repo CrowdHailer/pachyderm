@@ -5,7 +5,8 @@ defmodule LotteryCorp.Web.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_flash
-    plug :protect_from_forgery
+    # FIXME put back forgery
+    # plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
 
@@ -19,6 +20,9 @@ defmodule LotteryCorp.Web.Router do
     get "/", PageController, :index
     get "/operations/open-game", PageController, :open_game
     get "/operations/games/:id", PageController, :view_game
+    post "/operations/add_player", PageController, :add_player
+    post "/operations/remove_player", PageController, :remove_player
+    post "/operations/pick_winner", PageController, :pick_winner
   end
 
   # Other scopes may use custom stacks.
