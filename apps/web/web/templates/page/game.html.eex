@@ -1,0 +1,8 @@
+<a href="/">home</a>
+
+<h1>Game <%= @id %></h1>
+
+<ul>
+  <li> Winner: </li>
+  <li> Players: </li>
+</ul>

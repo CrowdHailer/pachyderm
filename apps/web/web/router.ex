@@ -17,6 +17,8 @@ defmodule LotteryCorp.Web.Router do
     pipe_through :browser # Use the default browser stack
 
     get "/", PageController, :index
+    get "/operations/open-game", PageController, :open_game
+    get "/operations/games/:id", PageController, :view_game
   end
 
   # Other scopes may use custom stacks.
