@@ -29,4 +29,10 @@ defmodule LotteryCorp.Web.PageController do
     {:ok, t} = LotteryCorp.Operations.pick_winner(id)
     redirect conn, to: "/operations/games/#{id}"
   end
+
+  def show_log(conn, _params) do
+    {:ok, log} = LotteryCorp.Operations.EventStore.log(LotteryCorp.Operations.EventStore)
+    IO.inspect(log)
+    render conn, "log.html", log: log
+  end
 end

@@ -23,6 +23,7 @@ defmodule LotteryCorp.Web.Router do
     post "/operations/add_player", PageController, :add_player
     post "/operations/remove_player", PageController, :remove_player
     post "/operations/pick_winner", PageController, :pick_winner
+    get "/analytics/log", PageController, :show_log
   end
 
   # Other scopes may use custom stacks.
