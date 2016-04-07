@@ -3,7 +3,6 @@ defmodule LotteryCorp.Operations.Game do
   use GenServer
 
   def start_link(uuid, event_store) do
-    # Should be game id
     GenServer.start_link(__MODULE__, {uuid, event_store})
   end
 
@@ -28,7 +27,6 @@ defmodule LotteryCorp.Operations.Game do
   end
 
   def init({uuid, event_store}) do
-    IO.inspect(uuid)
     # needs to set up an agregate id with event store
     {:ok, {%LotteryCorp.Operations.Game.State{uuid: uuid}, event_store}}
   end
