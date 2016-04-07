@@ -2,9 +2,7 @@ defmodule LotteryCorp.Operations.GameTest do
   use ExUnit.Case
   alias LotteryCorp.Operations.Game
 
-  test "should start with no players" do
 
-  end
   test "game" do
     {:ok, store} = LotteryCorp.Operations.EventStore.start_link([])
     {:ok, game} = Game.start_link(LotteryCorp.Operations.generate_game_key, store) # pass ev store/ start_link
