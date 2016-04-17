@@ -16,6 +16,9 @@ Invarients for property testing.
 - number of participants should always be 1 greater after command to add participant
 - participant should always be in the list after being added
 
+### Lessons
+- Naming is really hard. Not just thinking up names but also sharing. Name are really a self identity(uuid) and a number of listings with other entities.
+- A Ledger/store is a Queue not a stack.
 
 
 ## Installation
