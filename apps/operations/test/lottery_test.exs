@@ -43,6 +43,10 @@ defmodule LotteryTest do
     {:error, :lottery_closed} = LotteryCorp.Operations.add_player(game, "George")
   end
 
+# Have listing for global names
+# Have editable prize for lottery
+# Take snap shot of delivered prize when wins.
+# Have an authority when issuing commands
 
   # Test the game registry
   # - when it creates a game then the number of children on the game supervisor should go up by one
