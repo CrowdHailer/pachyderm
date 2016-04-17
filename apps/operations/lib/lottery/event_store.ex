@@ -1,45 +1,26 @@
 defmodule LotteryCorp.Operations.EventStore do
-  defmodule Forwarder do
-    use GenEvent
-
-    def handle_event(event, parent) do
-      send parent, event
-      {:ok, parent}
-    end
-  end
   use GenServer
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, [], opts)
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, :no_state, opts)
   end
 
-  def subscribe(store, pid) do
-    GenServer.call(store, {:subscribe, pid})
+  def persist(event_store, channel, event) do
+    GenServer.call(event_store, {:persist, channel, event})
   end
 
-  def store(store, uuid, event) do
-    GenServer.call(store, {:store, uuid, event})
+  ## SERVER CALLBACKS
+
+  def init(:no_state) do
+    {:ok, {0, [], []}}
   end
 
-  def log(store) do
-    GenServer.call(store, :log)
-  end
-
-  def init(state) do
-    GenEvent.start_link([name: __MODULE__.Broadcast])
-    {:ok, state}
-  end
-
-  def handle_call({:store, ref, event}, _f, log) do
-    log = [{ref, event} | log]
-    GenEvent.notify(__MODULE__.Broadcast, {ref, event})
-    {:reply, Enum.count(log), log}
-  end
-  def handle_call({:subscribe, pid}, _f, log) do
-    GenEvent.add_handler(__MODULE__.Broadcast, {__MODULE__.Forwarder, pid}, pid)
-    {:reply, {:ok, log}, log}
-  end
-  def handle_call(:log, _f, log) do
-    {:reply, {:ok, log}, log}
+  def handle_call({:persist, channel, event}, _f, {count, log, followers}) do
+    count = count + 1
+    entry = {count, channel, event}
+    Enum.each(followers, fn (follower) ->
+      send follower, {:"$LedgerEntry", entry}
+    end)
+    {:reply, {:ok, count}, {count, log ++ [entry], followers}}
   end
 end
