@@ -2,6 +2,9 @@ defmodule LotteryTest do
   use ExUnit.Case
   # doctest LotteryCorp
 
+
+  # alias LotteryCorp.Operations
+
   test "Add player to game" do
     {:ok, game_id} = LotteryCorp.Operations.create_game()
     LotteryCorp.Operations.add_player(game_id, "Mick")
@@ -21,6 +24,23 @@ defmodule LotteryTest do
     {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, 100)
     {:ok, _t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
     # IO.inspect(t)
+  end
+
+  test "lifecycle" do
+    {:ok, game} = LotteryCorp.Operations.create_game()
+
+    {:error, :no_players_to_win} = LotteryCorp.Operations.pick_winner(game) # randomiser
+    {:ok, _t} = LotteryCorp.Operations.add_player(game, "Adam")
+    {:ok, _t} = LotteryCorp.Operations.add_player(game, "Bill")
+    {:ok, _t} = LotteryCorp.Operations.add_player(game, "Clive")
+    {:ok, _t} = LotteryCorp.Operations.add_player(game, "Clive")
+    {:ok, _t} = LotteryCorp.Operations.add_player(game, "Dan")
+    {:ok, _t} = LotteryCorp.Operations.remove_player(game, "Dan")
+    {:ok, _t} = LotteryCorp.Operations.remove_player(game, "Edward")
+    {:ok, _t} = LotteryCorp.Operations.pick_winner(game) # randomiser
+    {:error, :lottery_closed} = LotteryCorp.Operations.pick_winner(game) # randomiser
+    {:error, :lottery_closed} = LotteryCorp.Operations.add_player(game, "Fred")
+    {:error, :lottery_closed} = LotteryCorp.Operations.add_player(game, "George")
   end
 
 

@@ -45,9 +45,12 @@ defmodule LotteryCorp.Operations.Game do
     end
   end
 
-  # FIXME only apply correct events
-  def handle_info({:"$EntryPersisted", {_id, _channel, event}}, {state, event_store}) do
-    new_state = Game.State.apply_event(event, state)
-    {:noreply, {new_state, event_store}}
+  def handle_info({:"$EntryPersisted", {_id, channel, event}}, {state, event_store}) do
+    if channel == state.uuid do
+      new_state = Game.State.apply_event(event, state)
+      {:noreply, {new_state, event_store}}
+    else
+      {:noreply, {state, event_store}}
+    end
   end
 end
