@@ -28,6 +28,7 @@ defmodule LotteryCorp.Operations.Game do
   end
 
   def init({uuid, event_store}) do
+    EventStore.follow(event_store, self)
     {:ok, {%Game.State{uuid: uuid}, event_store}}
   end
 
@@ -37,11 +38,16 @@ defmodule LotteryCorp.Operations.Game do
   def handle_call(command, _from, {state = %{uuid: uuid}, event_store}) do
     case Game.State.issue_command(command, state) do
       {:ok, event} ->
-        transaction = EventStore.persist(event_store, uuid, event)
-        new_state = Game.State.apply_event(event, state)
-        {:reply, {:ok, transaction}, {new_state, event_store}}
+        {:ok, transaction} = EventStore.persist(event_store, uuid, event)
+        {:reply, {:ok, transaction}, {state, event_store}}
       {:error, reason} ->
         {:reply, {:error, reason}, {state, event_store}}
     end
+  end
+
+  # FIXME only apply correct events
+  def handle_info({:"$EntryPersisted", {_id, _channel, event}}, {state, event_store}) do
+    new_state = Game.State.apply_event(event, state)
+    {:noreply, {new_state, event_store}}
   end
 end

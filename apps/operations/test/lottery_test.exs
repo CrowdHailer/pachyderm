@@ -5,22 +5,22 @@ defmodule LotteryTest do
   test "Add player to game" do
     {:ok, game_id} = LotteryCorp.Operations.create_game()
     LotteryCorp.Operations.add_player(game_id, "Mick")
-    {:ok, game_state} = LotteryCorp.Operations.get_game(game_id)
-    IO.inspect(game_state)
+    {:ok, _game_state} = LotteryCorp.Operations.get_game(game_id)
+    # IO.inspect(game_state)
   end
 
   test "Supervisor" do
     {:ok, sup} = LotteryCorp.Operations.Game.Supervisor.start_link([])
     {:ok, game} = LotteryCorp.Operations.Game.Supervisor.start_game(sup, 1202)
-    {:ok, t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
-    IO.inspect(t)
+    {:ok, _t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
+    # IO.inspect(t)
   end
 
   test "Registry" do
     # {:ok, registry} = LotteryCorp.Operations.Game.Registry.start_link()
     {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, 100)
-    {:ok, t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
-    IO.inspect(t)
+    {:ok, _t} = LotteryCorp.Operations.Game.add_player(game, "Zane")
+    # IO.inspect(t)
   end
 
 
