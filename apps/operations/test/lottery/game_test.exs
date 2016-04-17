@@ -3,7 +3,6 @@ defmodule LotteryCorp.Operations.GameTest do
   alias LotteryCorp.Operations.Game
 
 
-  @tag :skip
   test "game" do
     {:ok, store} = LotteryCorp.Operations.EventStore.start_link([])
     {:ok, game} = Game.start_link(LotteryCorp.Operations.generate_game_key, store) # pass ev store/ start_link

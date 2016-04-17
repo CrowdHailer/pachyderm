@@ -2,7 +2,6 @@ defmodule LotteryTest do
   use ExUnit.Case
   # doctest LotteryCorp
 
-  @tag :skip
   test "Add player to game" do
     {:ok, game_id} = LotteryCorp.Operations.create_game()
     LotteryCorp.Operations.add_player(game_id, "Mick")
@@ -10,7 +9,6 @@ defmodule LotteryTest do
     IO.inspect(game_state)
   end
 
-  @tag :skip
   test "Supervisor" do
     {:ok, sup} = LotteryCorp.Operations.Game.Supervisor.start_link([])
     {:ok, game} = LotteryCorp.Operations.Game.Supervisor.start_game(sup, 1202)
@@ -18,7 +16,6 @@ defmodule LotteryTest do
     IO.inspect(t)
   end
 
-  @tag :skip
   test "Registry" do
     # {:ok, registry} = LotteryCorp.Operations.Game.Registry.start_link()
     {:ok, game} = LotteryCorp.Operations.Game.Registry.lookup(LotteryCorp.Operations.Game.Registry, 100)

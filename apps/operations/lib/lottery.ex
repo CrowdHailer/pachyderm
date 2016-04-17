@@ -6,7 +6,7 @@ defmodule LotteryCorp.Operations do
 
     children = [
       # Define workers and child supervisors to be supervised
-      # worker(LotteryCorp.Operations.EventStore, [[name: LotteryCorp.Operations.EventStore]]),
+      worker(LotteryCorp.Operations.EventStore, [[name: LotteryCorp.Operations.EventStore]]),
       worker(LotteryCorp.Operations.Game.Supervisor, [[name: LotteryCorp.Operations.Game.Supervisor]]),
       worker(LotteryCorp.Operations.Game.Registry, [LotteryCorp.Operations.Game.Supervisor]),
     ]
