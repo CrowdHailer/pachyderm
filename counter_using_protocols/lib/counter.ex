@@ -1,19 +1,23 @@
 defmodule Counter do
-  use Application
+  use GenServer
 
-  # See http://elixir-lang.org/docs/stable/elixir/Application.html
-  # for more information on OTP Applications
-  def start(_type, _args) do
-    import Supervisor.Spec, warn: false
+  def start_link do
+    GenServer.start_link(__MODULE__, %Counter.State.Normal{})
+  end
 
-    children = [
-      # Define workers and child supervisors to be supervised
-      # worker(Counter.Worker, [arg1, arg2, arg3]),
-    ]
+  def command(pid, command) do
+    GenServer.call(pid, {:command, command})
+  end
 
-    # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
-    # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Counter.Supervisor]
-    Supervisor.start_link(children, opts)
+  # SERVER CALLBACKS
+
+  def handle_call({:command, command}, _from, state) do
+    events = Counter.State.handle_command(state, command)
+    IO.inspect(events)
+    # Ledger.record(ledger, events, command)
+    state = Enum.reduce(events, state, fn (ev, st) ->
+      Counter.State.handle_event(st, ev)
+    end)
+    {:reply, {:ok, state}, state}
   end
 end
