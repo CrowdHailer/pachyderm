@@ -1,8 +1,8 @@
-defmodule CounterUsingProtocols.Mixfile do
+defmodule Counter.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :counter_using_protocols,
+    [app: :counter,
      version: "0.0.1",
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
@@ -15,7 +15,7 @@ defmodule CounterUsingProtocols.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [applications: [:logger],
-     mod: {CounterUsingProtocols, []}]
+     mod: {Counter, []}]
   end
 
   # Dependencies can be Hex packages:

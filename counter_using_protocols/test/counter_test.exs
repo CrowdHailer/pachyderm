@@ -76,7 +76,7 @@ defmodule Counter do
   end
 end
 
-defmodule CounterUsingProtocolsTest do
+defmodule CounterTest do
   use ExUnit.Case
 
   test "the truth" do
