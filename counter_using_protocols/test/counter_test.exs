@@ -69,6 +69,7 @@ defmodule Counter do
   def handle_call({:command, command}, _from, state) do
     events = GenSourced.handle_command(state, command)
     IO.inspect(events)
+    # Ledger.record(ledger, events, command)
     state = Enum.reduce(events, state, fn (ev, st) ->
       GenSourced.handle_event(st, ev)
     end)

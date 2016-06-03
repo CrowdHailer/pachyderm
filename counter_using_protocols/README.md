@@ -18,3 +18,18 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
           [applications: [:counter]]
         end
 
+
+possible way to handle starting multiple different types of actors
+```elixir
+defmodule Uninitialized do
+  defstruct []
+end
+defimpl GenSourced, for: Uninitialized do
+  def handle_command(_state, command) do
+    raise "Cant accept commands"
+  end
+  def handle_event(_state, snapshot) do
+    snapshot
+  end
+end
+```
