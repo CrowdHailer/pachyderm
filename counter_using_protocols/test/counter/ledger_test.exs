@@ -13,10 +13,10 @@ defmodule Counter.LedgerTest do
   test "ledger" do
     {:ok, ledger} = Ledger.start_link()
     {:ok, count} = Ledger.record(ledger, [:event1, :event2], :command)
-    IO.inspect count
+    # IO.inspect count
     {:ok, count} = Ledger.inspect(ledger, self)
-    receive do
-      msg -> IO.inspect msg
-    end
+    # receive do
+    #   msg -> IO.inspect msg
+    # end
   end
 end
