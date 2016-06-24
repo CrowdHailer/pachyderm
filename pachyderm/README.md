@@ -64,6 +64,8 @@ Finally we can see the list of all changes in the system
 IO.inspect(logs)
 ```
 
+See this in action in the [example test file](https://github.com/CrowdHailer/event-sourcing.elixir/blob/master/pachyderm/examples/counter/test/counter_test.exs).
+
 Pachyderm Supports event sourced finite statemachine using the unset_state and set_state adjustments.
 
 ## Installation
