@@ -15,26 +15,52 @@ defmodule Pachyderm.Entity do
     GenServer.call(entity, {:instruction, instruction})
   end
   def instruct(entity, instruction)  do
-    GenServer.call(via_tuple(entity), {:instruction, instruction})
+    case Pachyderm.Entity.Supervisor.start_child(Pachyderm.Entity.Supervisor, [entity]) do
+      {:ok, pid} ->
+        GenServer.call(via_tuple(entity), {:instruction, instruction})
+      {:error, {:already_started, pid}} ->
+        GenServer.call(via_tuple(entity), {:instruction, instruction})
+      other ->
+        other
+    end
   end
   def init({id, ledger}) do
     case Ledger.InMemory.inspect(ledger, self) do
-      # {:ok, 0} ->
-      #   {:ok, {%Counter.State.Normal{}, ledger}}
+      {:ok, 0} ->
+        {:stop, :no_records}
       {:ok, count} ->
-        # propably should handle catchup in a special manner
-        {:ok, {%{id: id}, ledger}}
+        logs = read_logs(count, [])
+        empty_state = %{id: id}
+        state = State.react(empty_state, %{adjustments: logs})
+        case empty_state == state do
+          true -> {:stop, {:unknown_entity, id}}
+          false ->
+            {:ok, {state, ledger}}
+        end
     end
   end
+  defp read_logs(t, total) do
+    receive do
+      {_, %{adjustments: adjusments, id: id}} ->
+        case id == t do
+          true -> total ++ adjusments
+          false -> read_logs(t, total ++ adjusments)
+        end
+      end
+    end
 
   def handle_call({:instruction, instruction}, _from, {state, ledger}) do
-    {:ok, adjustments} = Protocol.instruct(state, instruction)
-    {:ok, reaction = %{id: id}} = Ledger.InMemory.record(ledger, adjustments, instruction)
-    receive do
-      {:"$LedgerEntry", %{id: ^id}} ->
+    case Protocol.instruct(state, instruction) do
+      {:ok, adjustments} ->
+        {:ok, reaction = %{id: id}} = Ledger.InMemory.record(ledger, adjustments, instruction)
+        receive do
+          {:"$LedgerEntry", %{id: ^id}} ->
+        end
+        state = State.react(state, reaction)
+        {:reply, {:ok, state}, {state, ledger}}
+      {:error, reason} ->
+        {:reply, {:error, reason}, {state, ledger}}
     end
-    state = State.react(state, reaction)
-    {:reply, {:ok, state}, {state, ledger}}
   end
 
   def handle_info({:"$LedgerEntry", reaction}, {state, ledger}) do

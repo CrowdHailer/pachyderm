@@ -7,4 +7,20 @@ defmodule Pachyderm.Ledger do
     GenServer.call(ledger, {:record, adjustments, command})
   end
 
+  def view_log(ledger \\ __MODULE__) do
+    {:ok, t} = GenServer.call(ledger, {:inspect, self})
+    logs = read_logs(3, [])
+    {:ok, logs}
+  end
+
+  defp read_logs(t, total) do
+    receive do
+      {_, %{adjustments: adjusments, id: id}} ->
+        case id == t do
+          true -> total ++ adjusments
+          false -> read_logs(t, total ++ adjusments)
+        end
+    end
+  end
+
 end

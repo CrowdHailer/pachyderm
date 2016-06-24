@@ -13,6 +13,14 @@ defmodule Pachyderm do
     opts = [strategy: :one_for_one, name: Pachyderm.Supervisor]
     Supervisor.start_link(children, opts)
   end
+
+  def random_string(length) do
+    :crypto.strong_rand_bytes(length) |> Base.url_encode64 |> binary_part(0, length)
+  end
+
+  def generate_id do
+    random_string(10)
+  end
 end
 defmodule VendingMachine do
   defmodule Command do
@@ -30,6 +38,12 @@ defmodule VendingMachine do
       defstruct [id: nil]
     end
   end
+  def create() do
+    id = Pachyderm.generate_id
+    {:ok, adjustments} = creation(id)
+    {:ok, transaction} = Pachyderm.Ledger.record(Pachyderm.Ledger, adjustments, :creation)
+    {:ok, id}
+  end
   def create(%{random: random, ledger: ledger}) do
     id = random.generate()
     adjustments = [
@@ -41,6 +55,10 @@ defmodule VendingMachine do
 
   def creation(id) do
     {:ok, [Pachyderm.Adjustment.set_state(id, State.ZeroCoins)]}
+  end
+
+  def add_coin(id) do
+    Pachyderm.Entity.instruct(id, %VendingMachine.Command.AddCoin{})
   end
 end
 defimpl Pachyderm.Protocol, for: VendingMachine.State.ZeroCoins do
@@ -65,5 +83,8 @@ defimpl Pachyderm.Protocol, for: VendingMachine.State.TwoCoins do
       Pachyderm.Adjustment.unset_state(id, VendingMachine.State.TwoCoins),
       Pachyderm.Adjustment.set_state(id, VendingMachine.State.OneCoin)
     ]}
+  end
+  def instruct(_state, command) do
+    {:error, {:unknown_command, command}}
   end
 end
