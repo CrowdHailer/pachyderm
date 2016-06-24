@@ -12,10 +12,10 @@ defmodule Counter.State do
   defstruct [id: nil, total: nil]
 end
 
-defimpl Pachyderm.Protocol for Counter.State do
+defimpl Pachyderm.Protocol, for: Counter.State do
   def instruct(%{id: id, total: current}, delta) when is_number(delta) do
     {:ok, [
-      Pachyderm.Adjustment.unset(id, :total, current)
+      Pachyderm.Adjustment.unset(id, :total, current),
       Pachyderm.Adjustment.set(id, :total, current + delta)
     ]}
   end
@@ -28,14 +28,15 @@ From a Domin Driven Design perspective the creation of entities is normally due 
 defmodule Counter do
   def creation(starting, id) do
     {:ok, [
-      Pachyderm.Adjustment.set_state(id, State.ZeroCoins),
-      Pachyderm.Adjustment.set(id, total, 0)
+      Pachyderm.Adjustment.set_state(id, State),
+      Pachyderm.Adjustment.set(id, :total, starting)
     ]}
   end
 
   def create(starting \\ 0) do
-    id = random.generate()
-    {:ok, _record} = ledger.record(creation(starting, id), :creation)
+    id = Pachyderm.generate_id()
+    {:ok, adjustments} = creation(starting, id)
+    {:ok, _record} = Pachyderm.Ledger.record(Pachyderm.Ledger, adjustments, :creation)
     {:ok, id}
   end
 end

@@ -9,7 +9,7 @@ defmodule Pachyderm.Ledger do
 
   def view_log(ledger \\ __MODULE__) do
     {:ok, t} = GenServer.call(ledger, {:inspect, self})
-    logs = read_logs(3, [])
+    logs = read_logs(t, [])
     {:ok, logs}
   end
 

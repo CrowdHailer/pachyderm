@@ -41,7 +41,7 @@ defmodule VendingMachine do
   def create() do
     id = Pachyderm.generate_id
     {:ok, adjustments} = creation(id)
-    {:ok, transaction} = Pachyderm.Ledger.record(Pachyderm.Ledger, adjustments, :creation)
+    {:ok, _transaction} = Pachyderm.Ledger.record(Pachyderm.Ledger, adjustments, :creation)
     {:ok, id}
   end
   def create(%{random: random, ledger: ledger}) do

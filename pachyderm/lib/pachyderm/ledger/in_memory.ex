@@ -27,6 +27,7 @@ defmodule Pachyderm.Ledger.InMemory do
 
   def handle_call({:record, adjustments, command}, _from, {log, followers}) do
     reactionId = Enum.count(log) + 1
+    adjustments = Enum.map(adjustments, fn (a) -> %{a | transaction: reactionId} end)
     reaction = %{command: command, adjustments: adjustments, id: reactionId}
     Enum.each(followers, fn (follower) ->
       send follower, {:"$LedgerEntry", reaction}
