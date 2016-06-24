@@ -1,10 +1,12 @@
 defmodule Pachyderm.Ledger.InMemory do
   use GenServer
+  # @behaviour Pachyderm.Ledger
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, {[], []}, opts)
   end
 
+  # DEBT investigation of tuple modules
   def record(adjustments, command, {__MODULE__, ledger}) do
     record(ledger, adjustments, command)
   end
