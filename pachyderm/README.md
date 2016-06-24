@@ -1,6 +1,69 @@
 # Pachyderm
 
-**TODO: Add description**
+**Event sourced actors for applications audit trail**
+
+## Usage
+
+### Single state counter
+
+Define a state module for your entities.
+```elixir
+defmodule Counter.State do
+  defstruct [id: nil, total: nil]
+end
+
+defimpl Pachyderm.Protocol for Counter.State do
+  def instruct(%{id: id, total: current}, delta) when is_number(delta) do
+    {:ok, [
+      Pachyderm.Adjustment.unset(id, :total, current)
+      Pachyderm.Adjustment.set(id, :total, current + delta)
+    ]}
+  end
+end
+```
+
+From a Domin Driven Design perspective the creation of entities is normally due to the interaction of another entity. This means that we need to write code that will insert the creation events directly into the ledger.
+
+```elixir
+defmodule Counter do
+  def creation(starting, id) do
+    {:ok, [
+      Pachyderm.Adjustment.set_state(id, State.ZeroCoins),
+      Pachyderm.Adjustment.set(id, total, 0)
+    ]}
+  end
+
+  def create(starting \\ 0) do
+    id = random.generate()
+    {:ok, _record} = ledger.record(creation(starting, id), :creation)
+    {:ok, id}
+  end
+end
+```
+
+*An alternative to setting the total as part of the creation events would be to have the entity support a set value command/instruction.*
+
+The counter is now available to be used.
+
+```elixir
+{:ok, counter1} = Counter.create
+{:ok, state} = Pachyderm.Entity.instruct(counter1, 1)
+{:ok, state} = Pachyderm.Entity.instruct(counter1, 1)
+{:ok, counter2} = Counter.create
+{:ok, state} = Pachyderm.Entity.instruct(counter2, 2)
+{:ok, state} = Pachyderm.Entity.instruct(counter2, 2)
+{:ok, state} = Pachyderm.Entity.instruct(counter1, -1)
+{:ok, state} = Pachyderm.Entity.instruct(counter2, -2)
+```
+
+Finally we can see the list of all changes in the system
+
+```elixir
+{:ok, logs} = Pachyderm.Ledger.view_log()
+IO.inspect(logs)
+```
+
+Pachyderm Supports event sourced finite statemachine using the unset_state and set_state adjustments.
 
 ## Installation
 
@@ -17,4 +80,3 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         def application do
           [applications: [:pachyderm]]
         end
-
