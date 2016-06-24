@@ -1,4 +1,18 @@
 defmodule Pachyderm do
+  use Application
+
+  def start(_type, _args) do
+    import Supervisor.Spec, warn: false
+
+    children = [
+      # Define workers and child supervisors to be supervised
+      worker(Pachyderm.Ledger.InMemory, [[name: Pachyderm.Ledger]]),
+      worker(Pachyderm.Entity.Supervisor, [[name: Pachyderm.Entity.Supervisor]]),
+    ]
+
+    opts = [strategy: :one_for_one, name: Pachyderm.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
 end
 defmodule VendingMachine do
   defmodule Command do

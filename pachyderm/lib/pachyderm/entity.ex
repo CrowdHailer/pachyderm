@@ -3,7 +3,7 @@ defmodule Pachyderm.Entity do
 
   use GenServer
 
-  def start_link(id, ledger) do
+  def start_link(id, ledger \\ Pachyderm.Ledger) do
     GenServer.start_link(__MODULE__, {id, ledger}, name: via_tuple(id))
   end
 
@@ -11,8 +11,11 @@ defmodule Pachyderm.Entity do
     {:via, :gproc, {:n, :l, {__MODULE__, id}}}
   end
 
-  def instruct(entity, instruction) do
+  def instruct(entity, instruction) when is_pid(entity)  do
     GenServer.call(entity, {:instruction, instruction})
+  end
+  def instruct(entity, instruction)  do
+    GenServer.call(via_tuple(entity), {:instruction, instruction})
   end
   def init({id, ledger}) do
     case Ledger.InMemory.inspect(ledger, self) do
