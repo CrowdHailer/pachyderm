@@ -24,7 +24,7 @@ defmodule Pachyderm.State do
   defp set_attribute(state, attribute, value) do
     Map.put(state, attribute, value)
   end
-  defp unset_attribute(state, attribute, value) do
+  defp unset_attribute(state, attribute, _value) do
     Map.put(state, attribute, nil)
   end
 end

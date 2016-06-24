@@ -16,9 +16,9 @@ defmodule Pachyderm.Entity do
   end
   def instruct(entity, instruction)  do
     case Pachyderm.Entity.Supervisor.start_child(Pachyderm.Entity.Supervisor, [entity]) do
-      {:ok, pid} ->
+      {:ok, _pid} ->
         GenServer.call(via_tuple(entity), {:instruction, instruction})
-      {:error, {:already_started, pid}} ->
+      {:error, {:already_started, _pid}} ->
         GenServer.call(via_tuple(entity), {:instruction, instruction})
       other ->
         other
