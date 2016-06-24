@@ -24,6 +24,10 @@ defmodule VendingMachine do
     {:ok, _} = ledger.record(adjustments, :creation)
     {:ok, id}
   end
+
+  def creation(id) do
+    {:ok, [Pachyderm.Adjustment.set_state(id, State.ZeroCoins)]}
+  end
 end
 defimpl Pachyderm.Protocol, for: VendingMachine.State.ZeroCoins do
   def instruct(%{id: id}, %VendingMachine.Command.AddCoin{}) do

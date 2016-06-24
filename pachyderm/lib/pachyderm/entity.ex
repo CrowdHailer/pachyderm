@@ -4,7 +4,11 @@ defmodule Pachyderm.Entity do
   use GenServer
 
   def start_link(id, ledger) do
-    GenServer.start_link(__MODULE__, {id, ledger})
+    GenServer.start_link(__MODULE__, {id, ledger}, name: via_tuple(id))
+  end
+
+  defp via_tuple(id) do
+    {:via, :gproc, {:n, :l, {__MODULE__, id}}}
   end
 
   def instruct(entity, instruction) do
