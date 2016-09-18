@@ -19,3 +19,8 @@ An event sourced counter with the follow features.
 
 ### Lottery Corp
 First example, builds entities on top of GenServer
+
+- [Motivational talk for modelling time properly](https://www.youtube.com/watch?v=Nhz5jMXS8gE)
+- [Acid 2.0](https://lostechies.com/jimmybogard/2013/06/06/acid-2-0-in-action/)
+- [Bloom project](http://boom.cs.berkeley.edu/)
+- 
