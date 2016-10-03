@@ -24,3 +24,5 @@ First example, builds entities on top of GenServer
 - [Acid 2.0](https://lostechies.com/jimmybogard/2013/06/06/acid-2-0-in-action/)
 - [Bloom project](http://boom.cs.berkeley.edu/)
 - 
+
+https://www.youtube.com/watch?v=66bU45vVF00 talk on bloom
