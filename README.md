@@ -1,5 +1,8 @@
 # Event Sourcing in Elixir
 
+https://www.youtube.com/watch?v=fQPsTEgd48I
+https://www.youtube.com/watch?v=R2Aa4PivG0g
+
 Experiments with eventsourced implementations in elixir.
 
 ### Opinions
