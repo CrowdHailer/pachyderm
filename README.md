@@ -3,6 +3,8 @@
 https://www.youtube.com/watch?v=fQPsTEgd48I
 https://www.youtube.com/watch?v=R2Aa4PivG0g
 
+https://tech.zilverline.com/2012/07/23/simple-event-sourcing-consistency-part-2
+
 Experiments with eventsourced implementations in elixir.
 
 ### Opinions
