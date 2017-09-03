@@ -31,3 +31,10 @@ First example, builds entities on top of GenServer
 - 
 
 https://www.youtube.com/watch?v=66bU45vVF00 talk on bloom
+
+
+task based UI is a good argument for CQRS and/or event systems
+
+https://cqrs.wordpress.com/documents/task-based-ui/
+virtual-strategy.com/2014/11/20/utilizing-task-driven-ui-create-high-performing-and-scalable-business-software/
+http://www.uxmatters.com/mt/archives/2014/12/task-driven-user-interfaces.php
