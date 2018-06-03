@@ -1,3 +1,33 @@
+# pachyderm - an elephant never forgets
+
+**Stateful webhooks for erlang/Elixir.**
+
+```elixir
+defmodule MyApp.Counter do
+  use Pachyderm.Entity
+
+  def init(), do: 0
+
+  def execute(message, state), do: state + 1
+end
+  # Or activate trigger
+  # react proceed
+```
+
+# Notes
+- Like whatthehook except
+  - custom code in source and not pushed by client
+- Don't use `self()` inside an agent callbacks, it will change.
+- Default behaviour for init is to return `nil`.
+- At the moment if Pachyderm.Agent dies then state is lost. That is awkward
+
+# Roadmap
+
+- Event sourcing
+  - requires ability to return separate event to updated state
+
+## Below some old notes on Event sourcing I am keeping around
+
 # Event Sourcing in Elixir
 
 https://www.youtube.com/watch?v=fQPsTEgd48I
@@ -28,7 +58,7 @@ First example, builds entities on top of GenServer
 - [Motivational talk for modelling time properly](https://www.youtube.com/watch?v=Nhz5jMXS8gE)
 - [Acid 2.0](https://lostechies.com/jimmybogard/2013/06/06/acid-2-0-in-action/)
 - [Bloom project](http://boom.cs.berkeley.edu/)
-- 
+-
 
 https://www.youtube.com/watch?v=66bU45vVF00 talk on bloom
 

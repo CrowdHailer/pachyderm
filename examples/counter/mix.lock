@@ -1,0 +1,6 @@
+%{
+  "ace": {:hex, :ace, "0.16.4", "8e3fe95f4f5b32c094037610f648c059b2f9fafafe9a33662908ad5b6022f9ed", [:mix], [{:hpack, "~> 0.2.3", [hex: :hpack_erl, repo: "hexpm", optional: false]}, {:raxx, "~> 0.15.2", [hex: :raxx, repo: "hexpm", optional: false]}], "hexpm"},
+  "cookie": {:hex, :cookie, "0.1.1", "89438362ee0f0ed400e9f076d617d630f82d682e3fbcf767072a46a6e1ed5781", [:mix], [], "hexpm"},
+  "hpack": {:hex, :hpack_erl, "0.2.3", "17670f83ff984ae6cd74b1c456edde906d27ff013740ee4d9efaa4f1bf999633", [:rebar3], [], "hexpm"},
+  "raxx": {:hex, :raxx, "0.15.4", "62e4a487e55e9469d1ba2d5de590672167f51eaac310f027f3f871018cb6a9fc", [:mix], [{:cookie, "~> 0.1.0", [hex: :cookie, repo: "hexpm", optional: false]}], "hexpm"},
+}
