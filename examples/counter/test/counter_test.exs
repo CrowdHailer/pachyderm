@@ -2,12 +2,6 @@ defmodule CounterTest do
   use ExUnit.Case
   doctest Counter
 
-  setup %{} do
-    {:ok, _} = Supervisor.start_link([], strategy: :one_for_one, name: Pachyderm.AgentSupervisor)
-    {:ok, _} = Task.Supervisor.start_link(name: Pachyderm.TaskSupervisor)
-    :ok
-  end
-
   # setup do
   #   {:ok, _} = Application.ensure_all_started(:inets)
   #   {:ok, pid} = Counter.WWW.start_link(%{}, port: 0)
@@ -17,15 +11,9 @@ defmodule CounterTest do
   # end
 
   test "run through" do
-    assert = {:ok, 1} = Pachyderm.execute(Counter, "x", :request)
-    assert = {:ok, 2} = Pachyderm.execute(Counter, "x", :request)
-    # Supervisor.start_child(sup, {Counter, :x})
-    # |> IO.inspect
-    # Supervisor.start_child(sup, {Counter, :x})
-    # |> IO.inspect
-    # Pachyderm.whereis("_", "123221", supervisor)
-    # Pachyderm.get("_", "123", supervisor)
-    # Pachyderm.Stateful
+    assert = {:ok, 1} = Pachyderm.activate(Counter, "a", :request)
+    assert = {:ok, 2} = Pachyderm.activate(Counter, "a", :request)
+    assert = {:ok, 1} = Pachyderm.activate(Counter, "b", :request)
   end
 
   @tag :skip

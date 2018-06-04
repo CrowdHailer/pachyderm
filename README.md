@@ -1,7 +1,5 @@
 # pachyderm - an elephant never forgets
 
-**Stateful webhooks for erlang/Elixir.**
-
 ```elixir
 defmodule MyApp.Counter do
   use Pachyderm.Entity
@@ -12,17 +10,27 @@ defmodule MyApp.Counter do
 end
   # Or activate trigger
   # react proceed
+  # Or message
 ```
 
 # Notes
 - Like whatthehook except
-  - custom code in source and not pushed by client
+  - custom code in source and not pushed by client, no js execution
 - Don't use `self()` inside an agent callbacks, it will change.
 - Default behaviour for init is to return `nil`.
 - At the moment if Pachyderm.Agent dies then state is lost. That is awkward
+- id == {kind, label}
 
 # Roadmap
 
+- subscribe functionality that returns {Entity, id, state} pass id to agent
+- use pg2 {Pachyderm.Channel, kind, id}
+- register across nodes using global
+- return better values based on errors
+- secondary actions by returning list of {type, id, message}
+- idempotentency concerns
+- pass contexts around for better testing
+- Sharded or ets backed supervisor for performance
 - Event sourcing
   - requires ability to return separate event to updated state
 

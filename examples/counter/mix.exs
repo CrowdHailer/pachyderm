@@ -20,7 +20,8 @@ defmodule Counter.MixProject do
 
   defp deps do
     [
-      {:ace, "~> 0.16.4"}
+      {:ace, "~> 0.16.4"},
+      {:pachyderm, path: "../../"}
     ]
   end
 end
