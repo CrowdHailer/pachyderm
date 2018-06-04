@@ -14,11 +14,12 @@ defmodule Pachyderm.Agent do
   end
 
   def init({kind, task_supervisor}) do
-    {:ok, %__MODULE__{
-      entity: kind,
-      task_supervisor: task_supervisor,
-      logic_state: kind.init()
-    }}
+    {:ok,
+     %__MODULE__{
+       entity: kind,
+       task_supervisor: task_supervisor,
+       logic_state: kind.init()
+     }}
   end
 
   def activate(pid, message) do
@@ -32,6 +33,7 @@ defmodule Pachyderm.Agent do
         message,
         state.logic_state
       ])
+
     case Task.yield(task) do
       {:ok, logic_state} ->
         state = %{state | logic_state: logic_state}

@@ -11,9 +11,9 @@ defmodule CounterTest do
   # end
 
   test "run through" do
-    assert = {:ok, 1} = Pachyderm.activate(Counter, "a", :request)
-    assert = {:ok, 2} = Pachyderm.activate(Counter, "a", :request)
-    assert = {:ok, 1} = Pachyderm.activate(Counter, "b", :request)
+    assert = {:ok, 1} = Pachyderm.activate({Counter, "a"}, :request)
+    assert = {:ok, 2} = Pachyderm.activate({Counter, "a"}, :request)
+    assert = {:ok, 1} = Pachyderm.activate({Counter, "b"}, :request)
   end
 
   @tag :skip

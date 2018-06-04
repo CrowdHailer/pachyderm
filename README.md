@@ -5,8 +5,7 @@ defmodule MyApp.Counter do
   use Pachyderm.Entity
 
   def init(), do: 0
-
-  def execute(message, state), do: state + 1
+  def activate(message, state), do: state + 1
 end
   # Or activate trigger
   # react proceed
@@ -24,13 +23,17 @@ end
 # Roadmap
 
 - subscribe functionality that returns {Entity, id, state} pass id to agent
-- use pg2 {Pachyderm.Channel, kind, id}
+- use pg2 {Pachyderm.Channel, kind, id}, then if node dies bringing up agent elsewhere keeps subscriptions.
+- Add Counter.id(entity_id) -> default {module, entity_id}
+  - can be overwritten to check type of id
+  - return opaque types Counter.activate(entity_id, allowed messages)
 - register across nodes using global
 - return better values based on errors
 - secondary actions by returning list of {type, id, message}
 - idempotentency concerns
 - pass contexts around for better testing
 - Sharded or ets backed supervisor for performance
+- Rename Counter.send calls Counter.handle
 - Event sourcing
   - requires ability to return separate event to updated state
 
