@@ -7,6 +7,13 @@ defmodule Pachyderm do
     Pachyderm.Agent.activate(get(id), message)
   end
 
+  @doc """
+    Follower must be added to process group by Agent to not have race condition for first state seen
+  """
+  def follow(id, follower \\ self()) do
+    Pachyderm.Agent.follow(get(id), follower)
+  end
+
   # In the future we can have a context
   def get(id = {kind, entity_id}) do
     # TODO check kind implements correct type
@@ -15,7 +22,7 @@ defmodule Pachyderm do
 
     child_spec = %{
       id: {kind, entity_id},
-      start: {Pachyderm.Agent, :start_link, [kind, task_supervisor]},
+      start: {Pachyderm.Agent, :start_link, [kind, entity_id, task_supervisor]},
       type: :worker,
       restart: :temporary,
       shutdown: 500

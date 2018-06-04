@@ -19,11 +19,10 @@ end
 - Default behaviour for init is to return `nil`.
 - At the moment if Pachyderm.Agent dies then state is lost. That is awkward
 - id == {kind, label}
+- following handles by :pg2 so all usecases of process exiting etc are handled
 
 # Roadmap
 
-- subscribe functionality that returns {Entity, id, state} pass id to agent
-- use pg2 {Pachyderm.Channel, kind, id}, then if node dies bringing up agent elsewhere keeps subscriptions.
 - Add Counter.id(entity_id) -> default {module, entity_id}
   - can be overwritten to check type of id
   - return opaque types Counter.activate(entity_id, allowed messages)
