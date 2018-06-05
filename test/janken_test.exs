@@ -18,7 +18,7 @@ defmodule JankenTest do
     end
   end
 
-  defmodule Game do
+  defmodule GameOld do
     defstruct [:first, :second]
     def init(_), do: %__MODULE__{}
 
@@ -32,12 +32,12 @@ defmodule JankenTest do
       new_state = %{state | second: {player_b, move_b}}
       result = resolve(new_state)
 
-      messages = [
-        {player_a, result},
-        {player_b, result}
-      ]
+      # messages = [
+      #   {player_a, result},
+      #   {player_b, result}
+      # ]
 
-      {messages, new_state}
+      {[], result}
     end
 
     defp resolve(%{first: {_pa, m}, second: {_pb, m}}), do: :draw
@@ -45,6 +45,32 @@ defmodule JankenTest do
     defp resolve(%{first: {pa, :scissors}, second: {_pb, :paper}}), do: {:winner, pa}
     defp resolve(%{first: {pa, :paper}, second: {_pb, :rock}}), do: {:winner, pa}
     defp resolve(%{first: {_pa, _}, second: {pb, _}}), do: {:winner, pb}
+  end
+  defmodule Game do
+    def init(_), do: nil
+
+    def activate({:move, player_a, move_a}, nil) do
+      messages = [{player_a, :waiting_for_opponent}]
+      new_state = {:waiting, player_a, move_a}
+      {messages, new_state}
+    end
+
+    def activate({:move, player_b, move_b}, {:waiting, player_a, move_a}) do
+      new_state = resolve({player_a, move_a}, {player_b, move_b})
+
+      # messages = [
+      #   {player_a, result},
+      #   {player_b, result}
+      # ]
+
+      {[], new_state}
+    end
+
+    defp resolve({pa, m}, {pb, m}), do: {:draw, pa, pb}
+    defp resolve({pa, :rock}, {pb, :scissors}), do: {:win, pa, pb}
+    defp resolve({pa, :scissors}, {pb, :paper}), do: {:win, pa, pb}
+    defp resolve({pa, :paper}, {pb, :rock}), do: {:win, pa, pb}
+    defp resolve({pa, _}, {pb, _}), do: {:win, pb, pa}
   end
 
   defmodule Player do
@@ -68,9 +94,10 @@ defmodule JankenTest do
   end
 
   defmodule World do
-    defstruct [:entities, :messages, :errors]
+    # processed = handled
+    defstruct [:entities, :processed, :errors]
     def fresh() do
-      %__MODULE__{entities: %{}}
+      %__MODULE__{entities: %{}, processed: []}
     end
 
     def activate(world, {kind, id}, message) do
@@ -78,7 +105,8 @@ defmodule JankenTest do
       state = get_entity(world, kind, id)
       {messages, new_state} = kind.activate(message, state)
       new_world = put_entity(world, kind, id, new_state)
-      {messages, new_world}
+      processed = new_world.processed ++ [{{kind, id}, message}]
+      {messages, %{new_world | processed: processed}}
     end
 
     defp get_entity(world, kind, id) do
@@ -92,10 +120,10 @@ defmodule JankenTest do
   end
 
   # label/address/channel = {kind, id}
-  def step({[{label, message} | rest], world}) do
-    new_messages = World.activate(world, label, message)
-    {rest ++ new_messages, world}
-  end
+  # def step({[{label, message} | rest], world}) do
+  #   new_messages = World.activate(world, label, message)
+  #   {rest ++ new_messages, world}
+  # end
 
   def reduce([], world) do
     world
@@ -105,12 +133,38 @@ defmodule JankenTest do
     reduce(rest ++ new_messages, new_world)
   end
 
-  test "" do
+  def exhaust([], world) do
+    world
+  end
+  def exhaust(messages, world) do
+    for i <- 0..(length(messages) - 1) do
+      {{label, message}, rest} = List.pop_at(messages, i)
+      {new_messages, new_world} = World.activate(world, label, message)
+      exhaust(rest ++ new_messages, new_world)
+    end
+    |> List.flatten
+  end
+
+# 1 * 2 * 2 * 2 * 3 * 2 * 1
+  test "simple test to reduce whole space" do
     lobby = {Lobby, "lobby"}
     alice = {Player, "alice"}
     bob = {Player, "bob"}
     initial_world = World.fresh()
     first_messages = [{lobby, {:start_game, alice, bob}}]
-    reduce(first_messages, initial_world)
+    exhaust(first_messages, initial_world)
+    |> Enum.reduce(%{}, fn(world, acc) ->
+      Map.update(acc, world.entities, world.processed, &([world.processed | &1]))
+    end)
+    # |> Map.keys()
+    |> IO.inspect
+
+    # Show the number of combinations
+    # show that there are two worlds
+    # rewrite to {:waiting, player}
+    # rewrite to {:win, player_a, player_b}
+
   end
+
+    # Can write a test case that the list of all messages is equal to all combinations/
 end
