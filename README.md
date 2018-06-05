@@ -71,48 +71,55 @@ Pachyderm reduces the possible actions of an actor to only two kinds.
 
 Event based is a lower abstraction because you can always have the event state_replaced
 
-# Testing
+# Explination
 
+```
+fn activate(msg, s0) -> {msgs, s1}
+```
+Add `init` and namespacing by type for convenience.
+Can always use a single type if think this is not necessary as well as default
+
+# Outside world
+
+Observation only by looking at state of entities.
+Easy to push in new messages. Just interupt with approprite new message
+or take existing world and start executing.
+Outside can watch and act. e.g. Have a payments to make actor.
+This is pulled off by an outside worker that adds messages when done.
+If we have at least once delivery we can just retry until done
+Test env might want to emulate retries
+
+## First article
 Reimagining the actor model
 
-- In erlang there are three things, plus
-  - loading code and changing the behaviour of all
-  - sleeping indefinetly
-  - talk to the internet
+As we all know erlang is not the actor model
+- loading code and changing the behaviour of all
+- sleeping indefinetly
+- talk to the internet
+- they can cease to exist
+
+What if we could reduce the actor model to two key concepts
 - What if every actor address already existed. Sending a message to an proto-actor would just activate it
+
+Simple functional view is extended with init 
+
+In rust can we prove purity if we take ownership and destroy?
+
+# Testing
+
 - What if they lived for ever failure to activate just left it at the old state.
 - This means no side effects.
 
 - The can be exhaustive testing, will require limited message depth of some other timeout safety.
 - In certain systems there will be an explosion of options but can use property testing to try a sample of them.
 
-Version one just walks trough every message in the tree
-```elixir
-defmodule Pachyderm.Test do
-  def walk([{{module, id}, msg} | rest], state \\ %{}) do
-    initial_entity = get_in(state, [module, id]) || module.init()
-    updated_entity = module.activate(message, initial_entity)
-    state = put_in(state, [module, id], updated_entity)
-    walk(rest | state)
-  end
-end
-```
 
-use List.pop_at for every case.
-can do it recursivly by having two lists and trying again with message moved from one to two.
-Can write a test case that the list of all messages is equal to all combinations.
+.
 
 Version two forks for every message in the tree
 Version three uses tasks
 
 examples
-
-Game service with lobby alice says play against bob.
-lobby sends game id to alice and bob
-both send move to game
-game says waiting to first
-then says results to both
-different message orders same result
 
 sharded usernamer registrar.
 Can read state which is the same as having subscribed

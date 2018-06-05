@@ -93,6 +93,22 @@ defmodule JankenTest do
     end
   end
 
+  # Pachyderm.TestWorld
+  # Pachyderm.TestSpace
+  # scuttlebutt calls it a network
+  # can be web or mesh
+  # Pachyderm.ClosedWorld
+  # population also works, actor population cohort
+  # collective flock swarm
+  # assembly collective
+  # hoard mob mass multitude herd pack
+  # gathering gaggle
+  # hive conference center market
+  # conurbation conglomerate
+  # Pachyderm.TestMob
+  # Pachyderm.LocalMob
+  # Pachyderm.PostgresMob
+  # Pachyderm.CloudMob
   defmodule World do
     # processed = handled
     defstruct [:entities, :processed, :errors]
@@ -138,10 +154,13 @@ defmodule JankenTest do
   end
   def exhaust(messages, world) do
     for i <- 0..(length(messages) - 1) do
-      {{label, message}, rest} = List.pop_at(messages, i)
-      {new_messages, new_world} = World.activate(world, label, message)
-      exhaust(rest ++ new_messages, new_world)
+      Task.async(fn() ->
+        {{label, message}, rest} = List.pop_at(messages, i)
+        {new_messages, new_world} = World.activate(world, label, message)
+        exhaust(rest ++ new_messages, new_world)
+      end)
     end
+    |> Enum.map(&Task.await/1)
     |> List.flatten
   end
 
