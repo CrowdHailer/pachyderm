@@ -47,9 +47,11 @@ defmodule Pachyderm.Agent do
       {:ok, logic_state} ->
         state = %{state | logic_state: logic_state}
         group_id = {state.kind, state.entity_id}
+
         for follow <- :pg2.get_members(group_id) do
-              send(follow, {group_id, logic_state})
+          send(follow, {group_id, logic_state})
         end
+
         {:reply, {:ok, logic_state}, state}
     end
   end
