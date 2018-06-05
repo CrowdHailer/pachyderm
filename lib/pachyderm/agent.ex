@@ -1,6 +1,7 @@
 defmodule Pachyderm.Agent do
   @moduledoc """
   Does work on behalf of some user specified entity
+  TODO rename runner/worker
   """
 
   use GenServer

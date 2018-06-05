@@ -1,42 +1,128 @@
-# pachyderm - an elephant never forgets
+# Pachyderm - an elephant never forgets
+
+**Immortal actors for many machines.**
 
 ```elixir
 defmodule MyApp.Counter do
   use Pachyderm.Entity
 
   def init(), do: 0
-  def activate(message, state), do: state + 1
+  def activate(_message, state), do: state + 1
 end
-  # Or activate trigger
-  # react proceed
-  # Or message
 ```
 
-# Notes
-- Like whatthehook except
-  - custom code in source and not pushed by client, no js execution
-- Don't use `self()` inside an agent callbacks, it will change.
-- Default behaviour for init is to return `nil`.
-- At the moment if Pachyderm.Agent dies then state is lost. That is awkward
-- id == {kind, label}
-- following handles by :pg2 so all usecases of process exiting etc are handled
+*`init/0` is optional, default implementation returns `nil`.*
+
+```elixir
+$ iex -S mix
+
+iex> counter = {Counter, "my_counter"}
+# {Counter, "a"}
+iex> Pachyderm.activate(counter, :increment)
+# {:ok, 1}
+iex> Pachyderm.activate(counter, :increment)
+# {:ok, 2}
+
+iex> Pachyderm.follow(counter)
+# {:ok, 2}
+iex> Pachyderm.activate(counter, :increment)
+# {:ok, 3}
+iex> flush()
+# {{Counter, "my_counter"}, 3}
+# :ok
+```
+
+## Notes
+
+### Consistency / Availability / Partition Tolerance
+
+Pachyderm chooses consistency at all costs within an entity.
+Within an entity all activations are guaranteed to be run with latest state.
+
+The combination of `{module, term}` is an entities id.
+Only a single entity can be running at any time.
+
+**NOTE: The scope of this guarantee of uniqueness depends on the backend being used.
+The default backend for development purposes guarantees this for one node ONLY.**
+
+### Immortal entities
+
+If an activation fails during exectution, the entity can still be reactivated we the previous persisted state. Followers of an entity will continue to receive updates.
+
+An entity should not make use of `self()` as it will change between activations.
+
+### Actor model
+
+Because sending a message to an entity will automatically create it;
+Pachyderm reduces the possible actions of an actor to only two kinds.
+
+1. Sending a message.
+2. Updating your own state.
+
+### Prior Art
+
+- whatthehook
+  - custom code is pushed by client and is JavaScript so this project has lots of things aroung vm/execution
+- Orleans/Erleans
 
 # Roadmap
 
+At the moment if the agent shadowing an entity dies then the entity state is lost.
+This is fine for local development but not many other usecases
+
+### DB backed backend
+
+This will require the ability to plugin/configure backends.
+
+By using `:global` + locks on the DB, uniqueness of activations can be guaranteed across nodes.
+Steps to running an activation.
+
+1. See if the entity is already running in `:global`.
+2. Take out advisory lock for entity, if this fails retry search in global.
+3. Register new instantiation of entity in `:global`.
+
+### transactional sends to other Entities
+
+### File storage for local backend
+
+### Segregated workspaces
+For testing
+
+### Separated idea of passive active entities
+The idea of an active entity is it will be automatically restarted on another machine.
+And not just in response to a to an external message.
+
+### Event sourced entites
+Have the ability to save and send only deltas/events and build a working state each time the entity is started
+
+### Other notes
+
+- configure type of agent, globally or part of context/world/space/workspace.
+- add switch to use file storage for local/single node. Can down an up so practise upgrades
+- write history of events to file
+- namespace global {namespace = ref, id}
+- It's like a work queue only results are committed not tasks/commands
 - Add Counter.id(entity_id) -> default {module, entity_id}
   - can be overwritten to check type of id
   - return opaque types Counter.activate(entity_id, allowed messages)
 - register across nodes using global
 - return better values based on errors
 - secondary actions by returning list of {type, id, message}
-- idempotentency concerns
+- idempotentency concerns, just use a map set or similar. not optimising for performance right now, or use optimistic concurrency lock keys.
 - pass contexts around for better testing
 - Sharded or ets backed supervisor for performance
 - Rename Counter.send calls Counter.handle
 - Event sourcing
   - requires ability to return separate event to updated state
+- use `make_ref()` at compile time to ensure nodes are running the same types.
 
-## Below some old notes on Event sourcing I am keeping around
+- names for activate
+  - Or activate trigger handle
+  - react proceed
+  - Or message
+- can remove task and do everything inside a process
+
+## Below some old comments on Event sourcing I am keeping around
 
 # Event Sourcing in Elixir
 
