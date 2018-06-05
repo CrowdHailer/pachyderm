@@ -45,6 +45,8 @@ Only a single entity can be running at any time.
 **NOTE: The scope of this guarantee of uniqueness depends on the backend being used.
 The default backend for development purposes guarantees this for one node ONLY.**
 
+Make configuring or starting a backend a requirement
+
 ### Immortal entities
 
 If an activation fails during exectution, the entity can still be reactivated we the previous persisted state. Followers of an entity will continue to receive updates.
@@ -65,6 +67,66 @@ Pachyderm reduces the possible actions of an actor to only two kinds.
   - custom code is pushed by client and is JavaScript so this project has lots of things aroung vm/execution
 - Orleans/Erleans
 
+### Events vs State
+
+Event based is a lower abstraction because you can always have the event state_replaced
+
+# Testing
+
+Reimagining the actor model
+
+- In erlang there are three things, plus
+  - loading code and changing the behaviour of all
+  - sleeping indefinetly
+  - talk to the internet
+- What if every actor address already existed. Sending a message to an proto-actor would just activate it
+- What if they lived for ever failure to activate just left it at the old state.
+- This means no side effects.
+
+- The can be exhaustive testing, will require limited message depth of some other timeout safety.
+- In certain systems there will be an explosion of options but can use property testing to try a sample of them.
+
+Version one just walks trough every message in the tree
+```elixir
+defmodule Pachyderm.Test do
+  def walk([{{module, id}, msg} | rest], state \\ %{}) do
+    initial_entity = get_in(state, [module, id]) || module.init()
+    updated_entity = module.activate(message, initial_entity)
+    state = put_in(state, [module, id], updated_entity)
+    walk(rest | state)
+  end
+end
+```
+
+use List.pop_at for every case.
+can do it recursivly by having two lists and trying again with message moved from one to two.
+Can write a test case that the list of all messages is equal to all combinations.
+
+Version two forks for every message in the tree
+Version three uses tasks
+
+examples
+
+Game service with lobby alice says play against bob.
+lobby sends game id to alice and bob
+both send move to game
+game says waiting to first
+then says results to both
+different message orders same result
+
+sharded usernamer registrar.
+Can read state which is the same as having subscribed
+
+Debug tools
+
+- Just raise error if anything fails, can't see history of state.
+- keep map of errors. Can take the list of commands
+- keep list of all event's applied against an entity. Filter to those just sent to the entity
+- Group by the list of events. and count duplications for how common it is to get into that situation.
+- write unit test for the entity
+
+- With property testing can try duplications.
+
 # Roadmap
 
 At the moment if the agent shadowing an entity dies then the entity state is lost.
@@ -84,6 +146,17 @@ Steps to running an activation.
 ### transactional sends to other Entities
 
 ### File storage for local backend
+
+### Partition on Username registration
+
+Because id can be generated no that the id responsible for Bob is "bo".
+`Pachyderm.activate({UsernameRegistration, "bo"}, {:register, "bob", {User, "32123132112"}})`
+Have a streaming listener on every node that acts as a cache.
+
+writes are not blocked because partitioning. reads do not hit the writers because of streaming.
+The immortal actor world view is then very nice.
+Talk at Elixir London meets
+This is probably the best motivation for an ability to send diffs. i.e. events.
 
 ### Segregated workspaces
 For testing
