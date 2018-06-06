@@ -95,49 +95,15 @@ e.g. a timer in the Simulation environment can return immidiatly
 Needs some switch out modules.
 
 ## First article
-Reimagining the actor model
-
-As we all know erlang is not the actor model
-- loading code and changing the behaviour of all
-- sleeping indefinetly
-- talk to the internet
-- they can cease to exist
-
-What if we could reduce the actor model to two key concepts
-- What if every actor address already existed. Sending a message to an proto-actor would just activate it
 
 Simple functional view is extended with init
 
 In rust can we prove purity if we take ownership and destroy?
 
-# Testing
-
-- What if they lived for ever failure to activate just left it at the old state.
-- This means no side effects.
-
-- The can be exhaustive testing, will require limited message depth of some other timeout safety.
-- In certain systems there will be an explosion of options but can use property testing to try a sample of them.
-
-
-.
-
-Version two forks for every message in the tree
-Version three uses tasks
-
-examples
+# examples
 
 sharded usernamer registrar.
 Can read state which is the same as having subscribed
-
-Debug tools
-
-- Just raise error if anything fails, can't see history of state.
-- keep map of errors. Can take the list of commands
-- keep list of all event's applied against an entity. Filter to those just sent to the entity
-- Group by the list of events. and count duplications for how common it is to get into that situation.
-- write unit test for the entity
-
-- With property testing can try duplications.
 
 # Roadmap
 
