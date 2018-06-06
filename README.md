@@ -17,7 +17,7 @@ end
 $ iex -S mix
 
 iex> counter = {Counter, "my_counter"}
-# {Counter, "a"}
+# {Counter, "my_counter"}
 iex> Pachyderm.activate(counter, :increment)
 # {:ok, 1}
 iex> Pachyderm.activate(counter, :increment)
