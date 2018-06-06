@@ -121,8 +121,6 @@ Steps to running an activation.
 2. Take out advisory lock for entity, if this fails retry search in global.
 3. Register new instantiation of entity in `:global`.
 
-### transactional sends to other Entities
-
 ### File storage for local backend
 
 ### Partition on Username registration
@@ -136,9 +134,6 @@ The immortal actor world view is then very nice.
 Talk at Elixir London meets
 This is probably the best motivation for an ability to send diffs. i.e. events.
 
-### Segregated workspaces
-For testing
-
 ### Separated idea of passive active entities
 The idea of an active entity is it will be automatically restarted on another machine.
 And not just in response to a to an external message.
@@ -151,7 +146,6 @@ Have the ability to save and send only deltas/events and build a working state e
 - configure type of agent, globally or part of context/world/space/workspace.
 - add switch to use file storage for local/single node. Can down an up so practise upgrades
 - write history of events to file
-- namespace global {namespace = ref, id}
 - It's like a work queue only results are committed not tasks/commands
 - Add Counter.id(entity_id) -> default {module, entity_id}
   - can be overwritten to check type of id
@@ -166,7 +160,6 @@ Have the ability to save and send only deltas/events and build a working state e
 - Event sourcing
   - requires ability to return separate event to updated state
 - use `make_ref()` at compile time to ensure nodes are running the same types.
-- label/address/channel = {kind, id}
 
 - names for activate
   - Or activate trigger handle

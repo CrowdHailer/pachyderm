@@ -6,15 +6,15 @@ defmodule Pachyderm.Agent do
 
   use GenServer
 
-  @enforce_keys [:kind, :entity_id, :task_supervisor, :logic_state]
+  @enforce_keys [:kind, :entity_id, :ecosystem, :logic_state]
   defstruct @enforce_keys
 
   # Don't start agent with runtime config because that is not permanent
-  def start_link(kind, entity_id, task_supervisor) do
-    GenServer.start_link(__MODULE__, {kind, entity_id, task_supervisor})
+  def start_link(kind, entity_id, ecosystem) do
+    GenServer.start_link(__MODULE__, {kind, entity_id, ecosystem})
   end
 
-  def init({kind, entity_id, task_supervisor}) do
+  def init({kind, entity_id, ecosystem}) do
     group_id = {kind, entity_id}
     :ok = :pg2.create(group_id)
 
@@ -22,8 +22,8 @@ defmodule Pachyderm.Agent do
      %__MODULE__{
        kind: kind,
        entity_id: entity_id,
-       task_supervisor: task_supervisor,
-       logic_state: kind.init()
+       ecosystem: ecosystem,
+       logic_state: kind.init(entity_id)
      }}
   end
 
@@ -36,23 +36,30 @@ defmodule Pachyderm.Agent do
   end
 
   def handle_call({:activate, message}, _from, state) do
+    {:noreply, state} = handle_cast({:activate, message}, state)
+    {:reply, {:ok, state.logic_state}, state}
+  end
+  def handle_cast({:activate, message}, state) do
     # Run in a task
     task =
-      Task.Supervisor.async_nolink(state.task_supervisor, state.kind, :activate, [
+      Task.Supervisor.async_nolink(state.ecosystem.task_supervisor, state.kind, :activate, [
         message,
         state.logic_state
       ])
 
     case Task.yield(task) do
-      {:ok, logic_state} ->
+      {:ok, {envelopes, logic_state}} ->
         state = %{state | logic_state: logic_state}
         group_id = {state.kind, state.entity_id}
 
         for follow <- :pg2.get_members(group_id) do
           send(follow, {group_id, logic_state})
         end
+        for {address, message} <- envelopes do
+          GenServer.cast(Pachyderm.Ecosystems.LocalMachine.get(address, state.ecosystem), {:activate, message})
+        end
 
-        {:reply, {:ok, logic_state}, state}
+        {:noreply, state}
     end
   end
 
