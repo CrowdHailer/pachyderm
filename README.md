@@ -89,6 +89,11 @@ This is pulled off by an outside worker that adds messages when done.
 If we have at least once delivery we can just retry until done
 Test env might want to emulate retries
 
+# Different implementation
+
+e.g. a timer in the Simulation environment can return immidiatly
+Needs some switch out modules.
+
 ## First article
 Reimagining the actor model
 
@@ -101,7 +106,7 @@ As we all know erlang is not the actor model
 What if we could reduce the actor model to two key concepts
 - What if every actor address already existed. Sending a message to an proto-actor would just activate it
 
-Simple functional view is extended with init 
+Simple functional view is extended with init
 
 In rust can we prove purity if we take ownership and destroy?
 
@@ -195,6 +200,7 @@ Have the ability to save and send only deltas/events and build a working state e
 - Event sourcing
   - requires ability to return separate event to updated state
 - use `make_ref()` at compile time to ensure nodes are running the same types.
+- label/address/channel = {kind, id}
 
 - names for activate
   - Or activate trigger handle
