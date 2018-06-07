@@ -5,11 +5,13 @@ defmodule Pachyderm.Application do
 
   def start(_type, _args) do
     children = [
-      {Pachyderm.EntitySupervisor, [name: Pachyderm.EntitySupervisor]},
-      {Pachyderm.TaskSupervisor, [name: Pachyderm.TaskSupervisor]},
+      Pachyderm.Ecosystems.LocalDisk.EcosystemSupervisor,
+      # TODO move childspec to ecosystem module
       %{
         id: Pachyderm.Ecosystem.LocalMachine.Supervisor,
-        start: {Supervisor, :start_link, [[], [strategy: :one_for_one, name: Pachyderm.Ecosystem.LocalMachine.Supervisor]]},
+        start:
+          {Supervisor, :start_link,
+           [[], [strategy: :one_for_one, name: Pachyderm.Ecosystem.LocalMachine.Supervisor]]},
         type: :supervisor,
         restart: :permanent,
         shutdown: 500

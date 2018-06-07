@@ -39,6 +39,7 @@ defmodule Pachyderm.Agent do
     {:noreply, state} = handle_cast({:activate, message}, state)
     {:reply, {:ok, state.logic_state}, state}
   end
+
   def handle_cast({:activate, message}, state) do
     # Run in a task
     task =
@@ -55,8 +56,12 @@ defmodule Pachyderm.Agent do
         for follow <- :pg2.get_members(group_id) do
           send(follow, {group_id, logic_state})
         end
+
         for {address, message} <- envelopes do
-          GenServer.cast(Pachyderm.Ecosystems.LocalMachine.get(address, state.ecosystem), {:activate, message})
+          GenServer.cast(
+            Pachyderm.Ecosystems.LocalMachine.get(address, state.ecosystem),
+            {:activate, message}
+          )
         end
 
         {:noreply, state}

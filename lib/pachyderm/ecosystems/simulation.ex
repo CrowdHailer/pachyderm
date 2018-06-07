@@ -34,18 +34,20 @@ defmodule Pachyderm.Ecosystems.Simulation do
   # separate to run and do_run
   # run accepts options such processed limit and fail on exception
   def run(envelopes, ecosystem \\ fresh())
+
   def run([], ecosystem) do
     ecosystem
   end
+
   def run(envelopes, ecosystem) do
     {remaining, ecosystem} = step(envelopes, ecosystem)
     run(remaining, ecosystem)
   end
+
   def run_all do
-
   end
-  def run_cohort(_message, _world, _seed) do
 
+  def run_cohort(_message, _world, _seed) do
   end
 
   def step([{address, message} | remaining_messages], ecosystem) do

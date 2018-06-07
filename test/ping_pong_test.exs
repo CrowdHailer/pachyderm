@@ -11,6 +11,7 @@ defmodule PingPongTest do
     use Pachyderm.Entity
 
     def init(id), do: :waiting
+
     def activate({:ping, client}, :waiting) do
       {[{client, :pong}], :pinged}
     end
@@ -20,10 +21,10 @@ defmodule PingPongTest do
     use Pachyderm.Entity
 
     def init(id), do: :waiting
+
     def activate(:pong, :waiting) do
       {[], :ponged}
     end
-
   end
 
   test "ping pong" do
