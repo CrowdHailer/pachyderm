@@ -1,4 +1,5 @@
 defmodule Pachyderm.Entity do
+  @type id :: term
   @type message :: term
   @type state :: term
   @callback init() :: state()
