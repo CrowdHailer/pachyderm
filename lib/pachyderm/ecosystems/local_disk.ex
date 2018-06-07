@@ -87,7 +87,12 @@ defmodule Pachyderm.Ecosystems.LocalDisk do
       for follower <- :pg2.get_members({ref, state.address}) do
         send(follower, {state.address, entity_state})
       end
-      # TODO cast follow on messages
+      # TODO cast follow on messages,
+      # Just say guarantees are at most once.
+      # TODO add definition of ecosystem in readme, update docs with this environment
+      # remove this part from the ROADMAP
+      # TODO also comment this is as slow as possible to get the consistency of write
+      # I suspect it should only be used for core things
       {:reply, {:ok, state.entity_state}, state}
     end
     def handle_call({:follow, follower}, _from, state) do

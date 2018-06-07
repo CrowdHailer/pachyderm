@@ -77,6 +77,19 @@ This would be good for testing upgrading the code in entities with old states.
 - If we can loose task_supervisor, i.e. Task always wraps in try catch, or write to disk, or pachyderm application has top supervisor.
 - Investigate Dets for storage, disk back will need a worker to retry messages that were not sent.
 
+### Discussion of software updates
+
+Saving structs to disk will leave them in the old format.
+There should be a version key that can be used to upgrade
+
+### Single node deploy on digital ocean or some such
+
+I suggest the rock paper scissors implementation
+
+### Runtime Deadletter queue
+
+For those cases the simulator did not catch
+
 ### Typed Actors (entities)
 
 I can see several ways to make types actors a reality in this model.
