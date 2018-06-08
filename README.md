@@ -77,6 +77,24 @@ This would be good for testing and upgrading the code in entities with old state
 - If we can lose task_supervisor, i.e. Task always wraps in try catch, or write to disk, or pachyderm application has top supervisor.
 - Investigate Dets for storage, disk back will need a worker to retry messages that were not sent.
 
+### At least once message delivery for `LocalDisk`
+
+The LocalDisk ecosystem of entities has at most once message delivery.
+It uses casts to send all outgoing messages after executing each iteration of the entity.
+
+Instead it could do the following steps
+
+1. save state and messages to dets.
+2. return to caller using `GenServer.reply(from, {:ok, state})`.
+3. Use `GenServer.call` to send messages to entities.
+4. save state and empty list of messages to dets.
+5. On startup the worker should check the list of outbound is empty before accepting new messages.
+6. The state of the worker should be transient so it is restarted after crash to resend messages, but shutting down after a timeout will close the process.
+
+**Question:** what if after all this effort the receiver crashes while processing the message.
+Does that count as a delivery?
+Would the system retry forever?
+
 ### Discussion of software updates
 
 Saving structs to disk will leave them in the old format.
