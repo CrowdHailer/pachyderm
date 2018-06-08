@@ -94,7 +94,7 @@ however I am happy with the responsibility of writing pure `activate` functions 
   At this point we can require every Entity type to also export types for `id` and `message`.
 
   NOTE: there is an error in dialyzer, which requires adding specs to the post function.
-  Dialyzer does not? support multi headed function specs.
+  Dialyzer does not support multi headed function specs.
 
   ```elixir
   def foo(:a, :b), do: :ok
