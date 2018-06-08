@@ -19,21 +19,54 @@ end
 ```elixir
 $ iex -S mix
 
-iex> counter = {Counter, "my_counter"}
-# {Counter, "my_counter"}
-iex> Pachyderm.activate(counter, :increment)
+iex> alias Pachyderm.Ecosystems.LocalDisk, as: Ecosystem
+# Pachyderm.Ecosystems.LocalDisk
+iex> counter = {MyApp.Counter, "my_counter"}
+# {MyApp.Counter, "my_counter"}
+
+iex> Ecosystem.send_sync(counter, :increment)
 # {:ok, 1}
-iex> Pachyderm.activate(counter, :increment)
+iex> Ecosystem.send_sync(counter, :increment)
 # {:ok, 2}
 
-iex> Pachyderm.follow(counter)
+iex> Ecosystem.follow(counter)
 # {:ok, 2}
-iex> Pachyderm.activate(counter, :increment)
+iex> Ecosystem.send_sync(counter, :increment)
 # {:ok, 3}
 iex> flush()
 # {{Counter, "my_counter"}, 3}
 # :ok
 ```
+
+*NOTE: if you retry this example in a new iex session the counter will remember previous state.*
+
+## Ecosystems
+
+An ecosystem is a collection of entities an the environment they are executing in.
+An application would be expect to be running only one ecosystem.
+
+Ecosystems are isolated from one another.
+Starting multiple ecosystems is mostly used for testing.
+
+```elixir
+setup %{} do
+  ecosystem = LocalDisk.participate(random_string())
+  {:ok, ecosystem: ecosystem}
+end
+
+test "state is preserved between activations", %{ecosystem: ecosystem} do
+  id = {Counter, "my_counter"}
+  assert {:ok, 1} = LocalDisk.send_sync(id, :increment, ecosystem)
+  assert {:ok, 2} = LocalDisk.send_sync(id, :increment, ecosystem)
+end
+```
+
+The `LocalDisk` ecosystem is for development purposes and works for a single node only.
+Entity state is preserved to disk and so survives restarts.
+This is useful for checking the behaviour of updated code using old saved entity states.
+
+See the roadmap for progress on multi-node ecosystems,
+one uses the database to guarantee consistency and one native to an erlang cluster.
 
 # Roadmap
 
