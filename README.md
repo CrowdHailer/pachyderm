@@ -39,24 +39,24 @@ iex> flush()
 
 ### System simulation and property testing
 
-This part of the project already includes the ability to apply a series of events to a simulated ecosystem by using. `Pachyderm.Ecosystems.Simulation.run/2`.
-There is also a `exhaust` function that will exhaustivly explore every possible ordering of message delivery.
-Using this can be used to see if a system is deterministict under reordering.
+This part of the project already includes the ability to apply a series of events to a simulated ecosystem by using `Pachyderm.Ecosystems.Simulation.run/2`.
+There is also an `exhaust` function that will exhaustivly explore every possible ordering of message delivery.
+This can be used to see if a system is deterministict under reordering.
 
-- When an activation errors show the list of all messages received by that entity. use `__STACKTRACE__`
-  This should be implemented and look like the message received code that exists in GenServer.
-- Add a maximum message depth to a run of the simulation.
-- Add a `Cohort` module that is responsible for running parrallel instances an ecosystem.
+- [ ] When an activation errors, show the list of all messages received by that entity using `__STACKTRACE__`
+  This should be implemented to look like the "message received" code that exists in GenServer.
+- [ ] Add a maximum message depth to the run of the simulation.
+- [ ] Add a `Cohort` module that is responsible for running parrallel instances of an ecosystem.
   This should replace the `exhaust` function.
-- Use a stream generator to explore the space of possible message orderings.
+- [ ] Use a stream generator to explore the space of possible message orderings.
 - TCP is a great example case for exploring.
   Explain what calm is.
   with just a server you can check message reordering.
-  with dropped messages you can show output always a subset of full output.
+  with dropped messages you can show output is always a subset of the full output.
   with duplicated messages you can show full calm.
-  duplicates can be achieved with just putting in twice as many.
-- Be able to switch out module implementations for test purposes.
-- Have activating work the same as all other ecosystems, i.e. functions take a reference and state is implicitly updated.
+  duplicates can be achieved by just putting messages in twice.
+- [ ] Be able to switch out module implementations for test purposes.
+- Have `activating` work the same as all other ecosystems, i.e. functions take a reference and state is implicitly updated.
   This can be achieved by putting the working state in an Agent, this can be supervised by the `:pachyderm_simulated` app
 
 ### Local machine ecosystem
@@ -68,13 +68,13 @@ It allows the model to be tried in development without having to pull in more de
 
 At the moment if the worker for an entity dies then the entity state is lost.
 This limits the local machine ecosystem to development purposes only.
-Making it disk backed would allow restarting an application using this ecosystem.
-This would be good for testing upgrading the code in entities with old states.
+Making it disk backed would allow restoring an application using this ecosystem.
+This would be good for testing and upgrading the code in entities with old states.
 
-- Could just run code inside the agenr/worker would be more performant.
+- Could just run code inside the agent/worker would be more performant.
   Would allow tricks like memoisation in the process dictionary to work
   Argument for always starting a task is that it forces consumers not to rely on pid of process.
-- If we can loose task_supervisor, i.e. Task always wraps in try catch, or write to disk, or pachyderm application has top supervisor.
+- If we can lose task_supervisor, i.e. Task always wraps in try catch, or write to disk, or pachyderm application has top supervisor.
 - Investigate Dets for storage, disk back will need a worker to retry messages that were not sent.
 
 ### Discussion of software updates
@@ -92,22 +92,22 @@ For those cases the simulator did not catch
 
 ### Typed Actors (entities)
 
-I can see several ways to make types actors a reality in this model.
+I can see several ways to make typed actors a reality in this model.
 It is easier because of the reduced scope of what an actor can do.
 However erlang/Elixir code can always do more than a function spec indicates,
-however I am happy with the responsibility of writing pure activate functions to rest with the users of this library
+however I am happy with the responsibility of writing pure `activate` functions to rest with the users of this library.
 
 1. This could be done my making the envelopes, combination of address and message, an opaque type.
   If each entity module is the only place that can make this opaque type.
   e.g. `Counter.post(counter_id, :increment)`.
   Then dialyzer can be used to check that all envlopes are valid, and within Pachyderm envelopes are the only way to cause side effects.
 
-2. By leaning on the Elixir macrosystem an ecosystem can be built that defines all of the actor types it has.
+2. By leaning on the Elixir macrosystem, an ecosystem can be built that defines all of the actor types it has.
   e.g. `use Pachyderm.Ecosystem.InMemory, [Counter]`.
   At this point we can require every Entity type to also export types for `id` and `message`.
 
   NOTE: there is an error in dialyzer, which requires adding specs to the post function.
-  Dialyzer does support multi headed function specs.
+  Dialyzer does not support multi headed function specs.
 
   ```elixir
   def foo(:a, :b), do: :ok
@@ -121,7 +121,7 @@ however I am happy with the responsibility of writing pure activate functions to
   @spec foo(:x, y:) :: :ok
   ```
 
-3. Decouple the concept of entity type and address type.
+3. Decouple the concepts of entity type and address type.
   Entities should be able to post and address that gives recipients only a subset of message types to send.
 
 4. Add a function to type the id's of each kind of entity.
@@ -129,7 +129,7 @@ however I am happy with the responsibility of writing pure activate functions to
 
 ### Event sourced entities
 
-With the simple model, whole state being returned, it is not possible to control what updates a follower sees.
+With the simple model, the whole state is returned which means it is not possible to control what updates a follower sees.
 I want to investigate event sourcing each entity.
 
 This appears to be a lower level of abstraction,
@@ -169,7 +169,7 @@ Make configuring or starting a backend a requirement
 
 ### Immortal entities
 
-If an activation fails during exectution, the entity can still be reactivated we the previous persisted state. Followers of an entity will continue to receive updates.
+If an activation fails during exectution, the entity can still be reactivated with the previous persisted state. Followers of an entity will continue to receive updates.
 
 An entity should not make use of `self()` as it will change between activations.
 
@@ -217,6 +217,7 @@ TCP derivation in a client, proxy server system that sends "hello," " World" "!"
 Show with reliable broadcast. Then show ordering issues, then message loss then duplication.
 
 ### Separated idea of passive active entities
+
 The idea of an active entity is it will be automatically restarted on another machine.
 And not just in response to a to an external message.
 
