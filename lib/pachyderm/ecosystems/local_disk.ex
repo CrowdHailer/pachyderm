@@ -38,6 +38,11 @@ defmodule Pachyderm.Ecosystems.LocalDisk do
     GenServer.call(get_worker(address, ecosystem), {:send, message})
   end
 
+  @doc false
+  def send(address, message, ecosystem \\ default_ecosystem()) do
+    GenServer.cast(get_worker(address, ecosystem), {:send, message})
+  end
+
   @doc """
   Receive updates whenever this entity state changes.
 

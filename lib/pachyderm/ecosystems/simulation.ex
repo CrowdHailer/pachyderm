@@ -23,6 +23,7 @@ defmodule Pachyderm.Ecosystems.Simulation do
     - given a fixed size piece of random can guarantee size
     - Need to say that all states are contained in some end state.
   """
+  @moduledoc false
 
   # processed = handled
   defstruct [:entities, :processed, :errors]

@@ -34,6 +34,25 @@ defmodule LocalDiskTest do
     assert_receive {^my_counter, 1}
   end
 
+  defmodule PingPong do
+    use Pachyderm.Entity
+
+    def activate({:ping, client}, nil), do: {[{client, :pong}], :pinged}
+    def activate(:pong, nil), do: {[], :ponged}
+  end
+
+  test "envelopes are forwarded to entities", %{ecosystem: ecosystem} do
+    alice = {PingPong, "alice"}
+    bob = {PingPong, "bob"}
+    assert {:ok, nil} = LocalDisk.follow(alice, ecosystem)
+    assert {:ok, nil} = LocalDisk.follow(bob, ecosystem)
+
+    # Alice pings Bob
+    assert {:ok, :pinged} = LocalDisk.send_sync(bob, {:ping, alice}, ecosystem)
+    assert_receive {^bob, :pinged}
+    assert_receive {^alice, :ponged}
+  end
+
   # TODO test that activations and follower are isolated between environments
   # TODO test that crashes leave old state intacted
   # TODO test what happens when an init fails, possibly add check to assert behaviour has been given.

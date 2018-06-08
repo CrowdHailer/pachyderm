@@ -2,13 +2,13 @@ defmodule Pachyderm.Entity do
   @type id :: term
   @type message :: term
   @type state :: term
-  @callback init() :: state()
+  @callback init(id) :: state()
   @callback activate(message, state) :: state
 
   defmacro __using__(_opts) do
     quote location: :keep, bind_quoted: [mod: __MODULE__] do
       @behaviour mod
-      def init() do
+      def init(id) do
         nil
       end
 

@@ -14,31 +14,69 @@ end
 - Both `init/1` and `activate/2` are callbacks of the `Pachyderm.Entity`
 - `init/1` is optional, default implementation returns `nil`.
 - `activate/2` must always return a two tuple.
-  The first element being a list of messages to send and the second being the updated state.
+  The first element being a list of `{address, message}` to send and the second being the updated state.
+- The address of an entity is always `{module, term}`.
 
 ```elixir
 $ iex -S mix
 
-iex> alias Pachyderm.Ecosystems.LocalDisk, as: Ecosystem
+iex> alias Pachyderm.Ecosystems.LocalDisk
 # Pachyderm.Ecosystems.LocalDisk
 iex> counter = {MyApp.Counter, "my_counter"}
 # {MyApp.Counter, "my_counter"}
 
-iex> Ecosystem.send_sync(counter, :increment)
+iex> LocalDisk.send_sync(counter, :increment)
 # {:ok, 1}
-iex> Ecosystem.send_sync(counter, :increment)
+iex> LocalDisk.send_sync(counter, :increment)
 # {:ok, 2}
 
-iex> Ecosystem.follow(counter)
+iex> LocalDisk.follow(counter)
 # {:ok, 2}
-iex> Ecosystem.send_sync(counter, :increment)
+iex> LocalDisk.send_sync(counter, :increment)
 # {:ok, 3}
+
 iex> flush()
-# {{Counter, "my_counter"}, 3}
+# {{MyApp.Counter, "my_counter"}, 3}
 # :ok
 ```
 
 *NOTE: if you retry this example in a new iex session the counter will remember previous state.*
+
+## Message passing example
+
+```elixir
+defmodule MyApp.PingPong do
+  use Pachyderm.Entity
+
+  def activate({:ping, client}, nil), do: {[{client, :pong}], :pinged}
+  def activate(:pong, nil), do: {[], :ponged}
+end
+```
+
+```elixir
+iex> alias Pachyderm.Ecosystems.LocalDisk
+# Pachyderm.Ecosystems.LocalDisk
+iex> alice = {MyApp.PingPong, "alice"}
+# {MyApp.PingPong, "alice"}
+iex> bob = {MyApp.PingPong, "bob"}
+# {MyApp.PingPong, "bob"}
+
+iex> LocalDisk.follow(alice)
+# {:ok, nil}
+iex> LocalDisk.follow(bob)
+# {:ok, nil}
+
+# Alice pings Bob
+iex> LocalDisk.send_sync(bob, {:ping, alice})
+# {:ok, :pinged}
+
+iex> flush()
+# {{MyApp.PingPong, "bob"}, :pinged}
+# {{MyApp.PingPong, "alice"}, :ponged}
+# :ok
+```
+
+TODO add warning if code calls `send`/`send_sync` within an activate callback.
 
 ## Ecosystems
 

@@ -1,6 +1,8 @@
 defmodule Pachyderm.Ecosystems.LocalDisk.Worker do
   use GenServer
 
+  alias Pachyderm.Ecosystems.LocalDisk
+
   @enforce_keys [:address, :ecosystem, :entity_state]
   defstruct @enforce_keys
 
@@ -38,14 +40,23 @@ defmodule Pachyderm.Ecosystems.LocalDisk.Worker do
     {:ok, %__MODULE__{address: address, ecosystem: ecosystem, entity_state: entity_state}}
   end
 
-  def handle_call({:send, :kill}, _from, state) do
-    {:reply, :ok, state, 0}
-  end
-  def handle_info(:timeout, state) do
-    {:stop, :normal, state}
-  end
   def handle_call({:send, message}, _from, state) do
-    {kind, entity_id} = state.address
+    state = activate(message, state)
+    {:reply, {:ok, state.entity_state}, state}
+  end
+  def handle_call({:follow, follower}, _from, state) do
+    {ref, _pid} = state.ecosystem
+    :ok = :pg2.join({ref, state.address}, follower)
+    {:reply, {:ok, state.entity_state}, state}
+  end
+
+  def handle_cast({:send, message}, state) do
+    state = activate(message, state)
+    {:noreply, state}
+  end
+
+  defp activate(message, state) do
+    {kind, _entity_id} = state.address
     {ref, _} = state.ecosystem
     {envelopes, entity_state} = kind.activate(message, state.entity_state)
     :ok = save_entity_state(state.ecosystem, state.address, entity_state)
@@ -53,18 +64,10 @@ defmodule Pachyderm.Ecosystems.LocalDisk.Worker do
     for follower <- :pg2.get_members({ref, state.address}) do
       send(follower, {state.address, entity_state})
     end
-    # TODO cast follow on messages,
-    # Just say guarantees are at most once.
-    # TODO add definition of ecosystem in readme, update docs with this environment
-    # remove this part from the ROADMAP
-    # TODO also comment this is as slow as possible to get the consistency of write
-    # I suspect it should only be used for core things
-    {:reply, {:ok, state.entity_state}, state}
-  end
-  def handle_call({:follow, follower}, _from, state) do
-    {ref, _pid} = state.ecosystem
-    :ok = :pg2.join({ref, state.address}, follower)
-    {:reply, {:ok, state.entity_state}, state}
+    for {address, message} <- envelopes do
+      LocalDisk.send(address, message, state.ecosystem)
+    end
+    state
   end
 
   # Can insert a list of messges with dets,
@@ -77,15 +80,12 @@ defmodule Pachyderm.Ecosystems.LocalDisk.Worker do
 
   def get_entity_state({ref, _}, address) do
     {:ok, :pachyderm} = :dets.open_file(:pachyderm, [file: 'pachyderm.ets', type: :set])
-    IO.inspect("loading")
     result = case :dets.lookup(:pachyderm, {ref, address}) do
       [] ->
         :none
       [{_, state}] ->
         {:some, state}
     end
-    |> IO.inspect
-    IO.inspect("-----")
     :ok = :dets.close(:pachyderm)
     result
   end
