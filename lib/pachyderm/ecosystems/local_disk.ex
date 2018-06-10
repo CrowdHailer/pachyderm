@@ -69,5 +69,4 @@ defmodule Pachyderm.Ecosystems.LocalDisk do
 
     participate(:erlang.binary_to_term(binary))
   end
-
 end

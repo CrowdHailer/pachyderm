@@ -4,9 +4,7 @@ defmodule Pachyderm.Ecosystems.LocalDisk.WorkerSupervisor do
   def child_spec(ecosystem_id) do
     %{
       id: ecosystem_id,
-      start:
-        {Supervisor, :start_link,
-         [[], [strategy: :one_for_one]]},
+      start: {Supervisor, :start_link, [[], [strategy: :one_for_one]]},
       type: :supervisor,
       restart: :permanent,
       shutdown: 500
