@@ -100,6 +100,8 @@ end
 ```
 
 The `LocalDisk` ecosystem is for development purposes and works for a single node only.
+Use this ecosystem for development purposes without requiring any further dependencies.
+
 Entity state is preserved to disk and so survives restarts.
 This is useful for checking the behaviour of updated code using old saved entity states.
 
@@ -129,24 +131,6 @@ This can be used to see if a system is deterministict under reordering.
 - [ ] Be able to switch out module implementations for test purposes.
 - Have `activating` work the same as all other ecosystems, i.e. functions take a reference and state is implicitly updated.
   This can be achieved by putting the working state in an Agent, this can be supervised by the `:pachyderm_simulated` app
-
-### Local machine ecosystem
-
-**This might get split into two InMemory vs DiskBacked**
-
-There is value in having a working single node implementation.
-It allows the model to be tried in development without having to pull in more dependendencies, such as the database.
-
-At the moment if the worker for an entity dies then the entity state is lost.
-This limits the local machine ecosystem to development purposes only.
-Making it disk backed would allow restoring an application using this ecosystem.
-This would be good for testing and upgrading the code in entities with old states.
-
-- Could just run code inside the agent/worker would be more performant.
-  Would allow tricks like memoisation in the process dictionary to work
-  Argument for always starting a task is that it forces consumers not to rely on pid of process.
-- If we can lose task_supervisor, i.e. Task always wraps in try catch, or write to disk, or pachyderm application has top supervisor.
-- Investigate Dets for storage, disk back will need a worker to retry messages that were not sent.
 
 ### At least once message delivery for `LocalDisk`
 
