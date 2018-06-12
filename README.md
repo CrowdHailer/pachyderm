@@ -219,11 +219,62 @@ Steps to running an activation.
 2. Take out advisory lock for entity, if this fails retry search in global.
 3. Register new instantiation of entity in `:global`.
 
+https://github.com/elixir-ecto/ecto/blob/master/integration_test/pg/deadlock_test.exs
+
 ### InMemory distributed erlang
 
 For this to work there needs to be a guarantee that nodes will all agree the order of messages received at each entity.
 As long as this is true it is not even that important for at least/most once delivery.
 I think the most useful semantics are at least once because idempotency can be added to activations.
+
+This backend will need to implement some consensus protocol.
+I do not think it can be standard Raft because I don't want an entity to be frozen after failing to handle a message.
+
+There were some further questions about raft here https://elixirforum.com/t/questions-about-raft/14634
+Raft does have the nice feature that a node discovering it is often nearer a client could start a leader election for itself.
+
+The throughput of the consensus mechanism is not important.
+System throughput is increased by having lots of statemachines that can run in parrallel.
+Reducing latency is a desirable feature. 1 round trip is possible if a node has already done some prework to get permission to write.
+
+In some cases. i.e. when confirming linearizability of messages from a client,
+it would be desirable to have a system that worked very fast in the case of no contention
+but then took much longer to resolve conflicts the assumption being conflict resolution is just a way to block bad actors.
+
+It would also be acceptable to have a system that froze in node downs as long as it never conflicted.
+
+I want to avoid running leaders because an entity might remain dormant for a substantial period,
+therefore pinging the leader would be a wast of resources.
+It might be possible to batch leadership. i.e. node a is the leader for all entities a-f.
+
+Raft implementation https://github.com/cdegroot/palapa/tree/master/erix
+
+##### A hundred impossibility proofs for distributed computing
+http://www.dtic.mil/dtic/tr/fulltext/u2/a216391.pdf
+
+##### Paxos
+
+- This seamed a reasonably good into to single value paxos https://www.youtube.com/watch?v=d7nAGI_NZPk
+- Some other algorithms to check here https://www.youtube.com/watch?v=XUQJvMALfUA
+- Paxos made simple https://www.idi.ntnu.no/emner/tdt02/PaxosMadeSimple.pdf
+
+Further resources
+
+- Just Say NO to Paxos Overhead: Replacing Consensus with Network Ordering https://syslab.cs.washington.edu/papers/nopaxos-tr16.pdf
+- Geo distribution of actor based services https://www.microsoft.com/en-us/research/wp-content/uploads/2017/01/Geo-Orleans-TR-012717.pdf
+- ??? https://people.eecs.berkeley.edu/~sylvia/cs268-2016/papers//approxsynch.pdf
+- Strong consistency models https://aphyr.com/posts/313-strong-consistency-models
+- Paxos on steroids https://tschottdorf.github.io/single-decree-paxos-tla-compare-and-swap#discussion-of-cas-paxos
+- https://github.com/gryadka/js
+- CASPaxos replicated state machines without logs https://arxiv.org/pdf/1802.07000.pdf
+
+##### Updates
+
+- Raft that saves events and not commands should have the same guarantees
+- I think it should be possible to make a paxos where the paxos-id chosen is generated from the hash of the content.
+- Is there a contention scenario where two nodes can fail to make progress while trying to send the same value?
+- If sending content to acceptor then acceptor can try to become proposor with remaining acceptors
+- Can you assume the proposor would accept, possibly not it you don't trust proposors i.e. clients.
 
 ## Notes
 
