@@ -221,6 +221,49 @@ Steps to running an activation.
 
 https://github.com/elixir-ecto/ecto/blob/master/integration_test/pg/deadlock_test.exs
 
+### Events and DB
+
+This is even easier to resolve conflicts, it is also the closest to the current system I am running.
+
+Would need and events table
+
+- id, monotonic db created helpful to read the whole table
+- type, e.g. user_signed_up might want to split to entity type and event type
+- event_version, used to update versions.
+- entity_id, entity ids are unique across all kinds not a hard requirement but easier for filtering
+- event_count, unique in combination with entity_id
+- transaction_count(command_id), groups events that were committed in the same step, should reference command
+- payload, i think safest to just have this as a binary for kafka compatibility
+
+commands table, join with events for a single transaction.
+This table should have a processed true of false flag, this can leave commands in the Deadletter queue.
+
+uniqueness between entity and transaction_id(interaction_id) gives security against conflicts.
+advisory locks are not necessary but improve efficiency when running background task to complete commands that where not executed in normal flow.
+
+Advisory locks are necessary if in memory state is going to be used in queries.
+If not process running on one machine can miss updates on the table.
+Even trailing the DB changelog can still have a situation where a client sends message to node a and the reads node b process before it has updated.
+The whole point of this system is to not have eventual consistency.
+
+This is a memory image, and would work very nicely.
+
+Memory image can be augmented by having a command table. would need hooks in the apply event step.
+Needs entity timeouts but that should be everything. can use ets for image but if entity crashes should be built from zero state
+snapshotting is a different process.
+
+Events should implement the event type. need to turn struct to Ecto record thing.
+Would be great if could use in memory localnode thing for development.
+Examples should definetly include update from previous version.
+If smart can use the same code to read command from request body as command payload.
+
+api-version is not the same as entity_version, maybe table should be system/schema_version.
+That would mean clients could send api_version which matched db.
+Also possible to have command version.
+Also because events are committed it's not required to be able to read old commands from db to current Struct.
+
+Make project called monies with stripe demo.
+
 ### InMemory distributed erlang
 
 For this to work there needs to be a guarantee that nodes will all agree the order of messages received at each entity.
