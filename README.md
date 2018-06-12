@@ -276,6 +276,22 @@ Further resources
 - If sending content to acceptor then acceptor can try to become proposor with remaining acceptors
 - Can you assume the proposor would accept, possibly not it you don't trust proposors i.e. clients.
 
+##### Alt protocol
+
+- save events rather than commands,
+  - allows indeterminism in output because one event will fix.
+  - allows commands to be rejected
+- have ring of nodes where each tries to pass message to next 2/3 for reduced network chatter
+- try to localise execution, allows memoisation of results (i.e. state as derived from events)
+- a node will pass the message to the last node that committed when it receives a new call,
+  up to n times before it executes itself and just divests the result.
+  - this will potentially conflict with other events but the consensus manages that.
+  If it cannot pass message to master it will do the same
+  - the consideration of choosing a valid n is how expensive the computation might be and how frequently the messages come from other places.
+  - i.e. if geo separated nodes working for a user then might be reasonable to expect that mojority of requests come to the same node.
+
+If a node looses it's memory it must ask all others for it's state before it can re-gain it's identity.
+
 ## Notes
 
 ### Consistency / Availability / Partition Tolerance
