@@ -25,7 +25,7 @@ defmodule JankenTest do
       {messages, new_state}
     end
 
-    def activate({:move, player_b, move_b}, state = %__MODULE__{first: {player_a, _move_a}}) do
+    def activate({:move, player_b, move_b}, state = %__MODULE__{}) do
       new_state = %{state | second: {player_b, move_b}}
       result = resolve(new_state)
       {[], result}
@@ -77,12 +77,12 @@ defmodule JankenTest do
     initial_world = Pachyderm.Ecosystems.Simulation.fresh()
     first_messages = [{lobby, {:start_game, alice, bob}}]
 
-    Pachyderm.Ecosystems.Simulation.exhaust(first_messages, initial_world)
+    assert [_] = Pachyderm.Ecosystems.Simulation.exhaust(first_messages, initial_world)
     |> Enum.reduce(%{}, fn world, acc ->
       Map.update(acc, world.entities, world.processed, &[world.processed | &1])
     end)
     |> Map.keys()
-    |> IO.inspect()
+    # |> IO.inspect()
 
     # Show the number of combinations
     # show that there are two worlds
