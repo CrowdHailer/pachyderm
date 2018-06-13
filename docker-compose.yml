@@ -1,0 +1,10 @@
+version: '2'
+
+services:
+  db:
+    image: "postgres:9.6.9"
+    environment:
+      - POSTGRES_USER=elmer
+      - POSTGRES_PASSWORD=patchwork
+    ports:
+      - 5432:5432

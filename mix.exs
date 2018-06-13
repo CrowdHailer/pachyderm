@@ -23,6 +23,7 @@ defmodule Pachyderm.MixProject do
 
   defp deps do
     [
+      {:postgrex, "~> 0.13.5"},
       {:ex_doc, ">= 0.0.0", only: :dev}
     ]
   end
