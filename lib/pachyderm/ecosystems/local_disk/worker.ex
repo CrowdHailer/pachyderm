@@ -6,10 +6,10 @@ defmodule Pachyderm.Ecosystems.LocalDisk.Worker do
   @enforce_keys [:address, :ecosystem, :entity_state]
   defstruct @enforce_keys
 
-  def child_spec({ecosystem, address}) do
+  def child_spec({address, ecosystem}) do
     %{
       id: address,
-      start: {__MODULE__, :start_link, [ecosystem, address]},
+      start: {__MODULE__, :start_link, [address, ecosystem]},
       type: :worker,
       restart: :temporary,
       shutdown: 500

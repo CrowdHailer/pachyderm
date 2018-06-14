@@ -1,4 +1,3 @@
-# TODO rename singleton supervisor
 defmodule Pachyderm.Ecosystems.PgBacked.WorkerSupervisor do
 
   def child_spec([]) do

@@ -1,39 +1,29 @@
 defmodule Pachyderm.Ecosystems.DBTest do
   use ExUnit.Case
 
-  defmodule MyWorker do
-    use GenServer
+  alias Pachyderm.Ecosystems.PgBacked
 
-    def start_link(opts) do
-      GenServer.start_link(__MODULE__, [], opts)
-    end
+  defmodule Counter do
+    use Pachyderm.Entity
+
+    def init(_entity_id), do: 0
+    def handle(_message, state), do: {[], state + 1}
   end
 
-  defmodule Singleton do
-    @spec whereis_name(integer) :: pid() | :undefined
-
-    def whereis_name({_, _, id}) when is_integer(id) do
-      :global.whereis_name(id)
-    end
-
-    def register_name({%{pg_session: pg_session}, _, id}, pid) do
-      case lock(pg_session, id) do
-        :yes ->
-          :global.register_name(id, pid)
-        :no ->
-          :no
-      end
-    end
-
-    defp lock(pg_session, entiy_id) do
-      Postgrex.query!(pg_session, "SELECT pg_advisory_lock(1, $1)", [entiy_id], [timeout: 500])
-      :yes
-    rescue
-      e in DBConnection.ConnectionError ->
-        :no
-    end
+  setup %{} do
+    ecosystem_id = random_string()
+    {:ok, ecosystem_sup} = PgBacked.start_link(ecosystem_id)
+    {:ok, ecosystem: %{supervisor: ecosystem_sup, id: ecosystem_id}}
   end
 
+  test "state is preserved after processing each message", %{ecosystem: ecosystem} do
+    id = {Counter, "my_counter"}
+    assert :ok = PgBacked.send_sync(id, :increment, ecosystem)
+    assert {:ok, 2} = PgBacked.send_sync(id, :increment, ecosystem)
+    Process.sleep(10_000)
+  end
+
+  @tag :skip
   test "taking out locks" do
     hostname = "localhost"
     username = "elmer"
@@ -62,5 +52,10 @@ defmodule Pachyderm.Ecosystems.DBTest do
     |> IO.inspect
     :erlang.phash2({B, 2}, :math.pow(2, 32) |> round)
     |> IO.inspect
+  end
+
+  def random_string() do
+    length = 12
+    :crypto.strong_rand_bytes(length) |> Base.url_encode64() |> binary_part(0, length)
   end
 end
