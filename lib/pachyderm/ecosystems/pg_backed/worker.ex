@@ -14,24 +14,17 @@ defmodule Pachyderm.Ecosystems.PgBacked.Worker do
   end
 
   def start_link(address, ecosystem) do
-    IO.inspect(address)
-    IO.inspect(ecosystem)
     GenServer.start_link(
       __MODULE__,
       {address, ecosystem},
-      name: {:via, PgBacked.Registry, {address, ecosystem}})
-    |> IO.inspect
+      name: PgBacked.via_tuple(address, ecosystem))
   end
 
   def init({address, ecosystem}) do
-    IO.inspect("Started")
-    IO.inspect(self)
     {:ok, {address, ecosystem}}
   end
 
   def handle_call(a, from, state) do
-    IO.inspect(a)
-    IO.inspect(self)
     {:reply, :ok, state}
   end
 end

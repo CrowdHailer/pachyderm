@@ -33,7 +33,7 @@ defmodule Pachyderm.Ecosystems.PgBacked.Registry do
   end
 
   def handle_call({:register, address, pid, ecosystem}, _from, state) do
-    pg_session = PgBacked.Supervisor.pg_session(ecosystem.supervisor)
+    pg_session = PgBacked.Supervisor.pg_session(my_supervisor())
 
     # Getting the lock works on a per pg_session basis.
     # global is consistent within a single node
@@ -50,9 +50,19 @@ defmodule Pachyderm.Ecosystems.PgBacked.Registry do
       {:error, :lock_timeout} ->
         {:reply, {:error, :lock_timeout}, state}
     end
+  end
 
-    # ref = Process.monitor pid
-    # ref = Process.monitor pid
+  def handle_info({:DOWN, monitor, :process, _pid, _reason}, state) do
+    pg_session = PgBacked.Supervisor.pg_session(my_supervisor())
+
+    {lock_id, state} = pop_in(state, [:monitors, monitor])
+    :ok = unlock(pg_session, lock_id)
+    {:noreply, state}
+  end
+
+  defp my_supervisor() do
+    [parent] = for {:"$ancestors", [parent | _rest]} <- Process.get(), do: parent
+    parent
   end
 
   defp lock(pg_session, address, ecosystem) do
@@ -67,13 +77,16 @@ defmodule Pachyderm.Ecosystems.PgBacked.Registry do
     _e in DBConnection.ConnectionError ->
       {:error, :lock_timeout}
   end
-  #
-  # def handle_info({:DOWN}) do
-  #   drop ref
-  #   {address, monitors} = Map.pop(monitors, ref)
-  #   unlock(state.ecosystem_id, address)
-  # end
-  #
+
+  defp unlock(pg_session, lock_id) do
+    %Postgrex.Result{rows: [[true]]} = Postgrex.query!(
+      pg_session,
+      "SELECT pg_advisory_unlock($1, $2)",
+      [elem(lock_id, 0), elem(lock_id, 1)],
+      [timeout: 500])
+    :ok
+  end
+
   defp hash(term) do
     :erlang.phash2(term, :math.pow(2, 31) |> round)
   end

@@ -13,45 +13,15 @@ defmodule Pachyderm.Ecosystems.DBTest do
   setup %{} do
     ecosystem_id = random_string()
     {:ok, ecosystem_sup} = PgBacked.start_link(ecosystem_id)
+    # I think the system should manange with only ecosystem_sup
     {:ok, ecosystem: %{supervisor: ecosystem_sup, id: ecosystem_id}}
   end
 
   test "state is preserved after processing each message", %{ecosystem: ecosystem} do
-    id = {Counter, "my_counter"}
-    assert :ok = PgBacked.send_sync(id, :increment, ecosystem)
-    assert {:ok, 2} = PgBacked.send_sync(id, :increment, ecosystem)
+    my_counter = {Counter, "my_counter"}
+    assert :ok = PgBacked.send_sync(my_counter, :increment, ecosystem)
+    assert :ok = PgBacked.send_sync(my_counter, :increment, ecosystem)
     Process.sleep(10_000)
-  end
-
-  @tag :skip
-  test "taking out locks" do
-    hostname = "localhost"
-    username = "elmer"
-    password = "patchwork"
-    {:ok, session1} = Postgrex.start_link(hostname: hostname, username: username, password: password, database: "elmer")
-    |> IO.inspect
-    Postgrex.query(session1, "SELECT 1", [])
-    |> IO.inspect
-    Postgrex.query(session1, "SELECT pg_advisory_lock(1, 1)", [])
-    |> IO.inspect
-    Postgrex.query(session1, "SELECT pg_advisory_lock(1, 1)", [])
-    |> IO.inspect
-    {:ok, session2} = Postgrex.start_link(hostname: hostname, username: username, password: password, database: "elmer")
-    |> IO.inspect
-    # Postgrex.query(session2, "SELECT pg_advisory_lock(1, 1)", [], [timeout: 500])
-    # |> IO.inspect
-
-    {:ok, supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
-    # Name it via Ecosystem
-    DynamicSupervisor.start_child(supervisor, %{id: MyWorker, start: {MyWorker, :start_link, [[name: {:via, Singleton, {%{pg_session: session1}, MyWorker, 45}}]]}})
-    |> IO.inspect
-    DynamicSupervisor.start_child(supervisor, %{id: MyWorker, start: {MyWorker, :start_link, [[name: {:via, Singleton, {%{pg_session: session2}, MyWorker, 45}}]]}})
-    |> IO.inspect
-
-    :erlang.phash2({A, 2}, :math.pow(2, 32) |> round)
-    |> IO.inspect
-    :erlang.phash2({B, 2}, :math.pow(2, 32) |> round)
-    |> IO.inspect
   end
 
   def random_string() do
