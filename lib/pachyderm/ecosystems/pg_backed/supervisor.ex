@@ -4,8 +4,8 @@ defmodule Pachyderm.Ecosystems.PgBacked.Supervisor do
   alias Pachyderm.Ecosystems.PgBacked
 
   # take a config map with db name ecosystem_id
-  def start_link(ecosystem_id) do
-    Supervisor.start_link(__MODULE__, ecosystem_id)
+  def start_link(ecosystem_id, options) do
+    Supervisor.start_link(__MODULE__, ecosystem_id, options)
   end
 
   @impl Supervisor

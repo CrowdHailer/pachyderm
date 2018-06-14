@@ -6,6 +6,7 @@ defmodule Pachyderm.Application do
   def start(_type, _args) do
     children = [
       Pachyderm.Ecosystems.LocalDisk.EcosystemSupervisor,
+      {Pachyderm.Ecosystems.PgBacked, [name: Pachyderm.Ecosystems.PgBacked]},
       # All the PgBacked ones should be in one link
       # # Pachyderm.Ecosystems.PgBacked.Registry,
       # Pachyderm.Ecosystems.PgBacked.PgSession,

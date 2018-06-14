@@ -24,7 +24,8 @@ defmodule Pachyderm.Ecosystems.PgBacked.Worker do
     {:ok, {address, ecosystem}}
   end
 
-  def handle_call(a, from, state) do
+  def handle_call(message, _from, state) do
+    IO.inspect("#{inspect(self())} received: #{inspect(message)}")
     {:reply, :ok, state}
   end
 end

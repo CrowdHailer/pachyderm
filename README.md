@@ -108,6 +108,26 @@ This is useful for checking the behaviour of updated code using old saved entity
 See the roadmap for progress on multi-node ecosystems,
 one uses the database to guarantee consistency and one native to an erlang cluster.
 
+## PgBacked ecosystem
+
+This ecosystem ensures only a single worker is running for any entity accross multiple machines by use of `:global` and [pg_advisory_lock](https://www.postgresql.org/docs/9.4/static/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS)
+
+1.
+
+##### Notes
+
+- It's possible to start more than one supervisor/registry/pg session for each ecosystem.
+  pg_advisory_lock ensures uniqueness between machines.
+  global ensures uniqueness on machines.
+- For efficient lookup of processes a client needs ecosystem_id (to pass to global) and register pid to start a new process
+- A separate register process is needed (instead of letting a worker take their own locks) as this process is responsible for setting up a monitor to release the pg_advisory_lock.
+- If the pg_session dies all locks are lost and so all workers must die, This does not need to be true if all writes go through the same session.
+- The desire to start a new registry process and session for each ecosystem might be unwise.
+  A single pg_session could be used by several registries.
+  A single registry could use several pg_sessions although it would need to remember which lock was on which session to release it.
+  This could have a race condition where a lock needs to be released but a write goes through another session so would need to guarantee that the session with the lock is used for the write.
+  You can write a query that takes lock j equalling entity id but might be slow
+
 # Roadmap
 
 ### System simulation and property testing
