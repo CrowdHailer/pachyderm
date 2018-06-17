@@ -312,8 +312,17 @@ It might be possible to batch leadership. i.e. node a is the leader for all enti
 
 Raft implementation https://github.com/cdegroot/palapa/tree/master/erix
 
+Talk about wooga/locker
+https://www.youtube.com/watch?v=ekcBAseo7Js
+
+https://github.com/edwardbadboy/paxosd
+
 ##### A hundred impossibility proofs for distributed computing
 http://www.dtic.mil/dtic/tr/fulltext/u2/a216391.pdf
+
+#### Actor database
+http://rcardin.github.io/database/actor-model/reactive/akka/scala/2016/02/07/actorbase-or-the-persistence-chaos.html
+https://arxiv.org/pdf/1707.06507.pdf
 
 ##### Paxos
 
