@@ -10,11 +10,16 @@ defmodule Pachyderm.EntityWorker do
     start_link(entity, config)
   end
 
+  def dispatch(worker, message) do
+    GenServer.call(worker, {:message, message})
+  end
+
   @impl GenServer
   def init(init) do
     %{config: config, entity: entity} = init
     {entity_module, entity_id} = entity
 
+    :ok = EventStore.subscribe(entity_id)
     # Need to start the subscription before hand
     {:ok, storage_events} =
       case EventStore.read_stream_forward(entity_id, 0) do
@@ -60,17 +65,10 @@ defmodule Pachyderm.EntityWorker do
               {[], new_events}
           end
 
-        events = saved_events ++ new_events
-        # Correlation vs causation
-        # Also what is metadata
+        entity = {entity_module, entity_id}
+        Pachyderm.Log.append(entity, length(saved_events), new_events)
         # TODO test validity of actions before saving events
-        storage_events =
-          for event <- new_events do
-            %EventStore.EventData{event_type: nil, data: event}
-          end
-
-        :ok = EventStore.append_to_stream(entity_id, length(saved_events), storage_events)
-
+        events = saved_events ++ new_events
         entity_state = Enum.reduce(new_events, entity_state, &entity_module.apply/2)
 
         for {_monitor, follower} <- followers do
@@ -100,6 +98,46 @@ defmodule Pachyderm.EntityWorker do
 
     state = %{state | followers: followers}
     {:reply, {:ok, count}, state, {:continue, {:send_follower, follower, events}}}
+  end
+
+  def handle_info({:events, recorded_events}, state) do
+    state = catchup(recorded_events, state)
+    {:noreply, state}
+  end
+
+  defp catchup([], state) do
+    state
+  end
+
+  defp catchup(
+         [%EventStore.RecordedEvent{stream_version: entity_version, data: event} | rest],
+         state = %{
+           events: events,
+           followers: followers,
+           entity_state: entity_state,
+           entity_module: entity_module
+         }
+       )
+       when entity_version - length(events) == 1 do
+    events = events ++ [event]
+
+    for {_monitor, follower} <- followers do
+      send(follower, {:events, [event]})
+    end
+
+    entity_state = Enum.reduce([event], entity_state, &entity_module.apply/2)
+
+    state = %{state | events: events, entity_state: entity_state}
+
+    catchup(rest, state)
+  end
+
+  defp catchup(
+         [%EventStore.RecordedEvent{stream_version: entity_version, data: event} | rest],
+         state = %{events: events}
+       )
+       when length(events) >= entity_version do
+    catchup(rest, state)
   end
 
   def handle_continue({:send_follower, follower, events}, state) do

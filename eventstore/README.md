@@ -115,6 +115,8 @@ When writing to a database all events will be written in a single transaction.
 That transaction could be left running until all the sideeffect handlers have run,
 if these where to write to a task queue in the same transaction, then sideeffects would be reliably retryable.
 
+### sync queries
+There should be a way of committing snapshot/query module in the same transaction
 
 Internal state working state activate/execute
 commanded rebuild before subscribe?

@@ -36,5 +36,18 @@ defmodule ExampleTest do
     :ok = DynamicSupervisor.terminate_child(supervisor, pid)
 
     assert {:ok, %{count: 6}} = Pachyderm.deliver(supervisor, first_counter, :increment)
+
+    refute_receive _
+    assert {:ok, 6} = Pachyderm.follow(supervisor, first_counter, 0)
+    assert_receive {:events, events}
+    assert length(events) == 6
+
+    # TEST event appended elsewhere
+    Pachyderm.Log.append(first_counter, 6, [%Example.Counter.Increased{amount: 1}])
+
+    # Need to resubscribe and wait for this because other wise we can dispatch the event too quickly
+    assert_receive {:events, [%Example.Counter.Increased{amount: 1}]}
+    # Follower is lost because we killed the process earlier
+    assert {:ok, %{count: 8}} = Pachyderm.deliver(supervisor, first_counter, :increment)
   end
 end
