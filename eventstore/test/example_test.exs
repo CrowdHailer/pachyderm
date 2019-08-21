@@ -17,18 +17,19 @@ defmodule ExampleTest do
     assert {:ok, 2} = Pachyderm.follow(supervisor, first_counter, 0)
     # Need to revceive them with counter/cursor number and stream id {Entity module, id}
     # TEST old events are sent to the follower
-    assert_receive {:events, [%Pachyderm.Increased{amount: 1}, %Pachyderm.Increased{amount: 1}]}
+    assert_receive {:events,
+                    [%Example.Counter.Increased{amount: 1}, %Example.Counter.Increased{amount: 1}]}
 
     # TEST new events are sent to the follower
     assert {:ok, %{count: 3}} = Pachyderm.deliver(supervisor, first_counter, :increment)
-    assert_receive {:events, [%Pachyderm.Increased{amount: 1}]}
+    assert_receive {:events, [%Example.Counter.Increased{amount: 1}]}
 
     assert {:ok, %{count: 4}} = Pachyderm.deliver(supervisor, first_counter, :increment)
-    assert_receive {:events, [%Pachyderm.Increased{amount: 1}]}
+    assert_receive {:events, [%Example.Counter.Increased{amount: 1}]}
     refute_receive _
 
     assert {:ok, %{count: 5}} = Pachyderm.deliver(supervisor, first_counter, :increment)
-    assert_receive {:events, [%Pachyderm.Increased{amount: 1}]}
+    assert_receive {:events, [%Example.Counter.Increased{amount: 1}]}
     assert_receive %{alert: 5}
 
     other_counter = UUID.uuid4()

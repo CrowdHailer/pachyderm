@@ -9,7 +9,13 @@ defmodule Pachyderm do
     GenServer.call(pid, {:follow, cursor})
   end
 
+  def apply(a, b) do
+  end
+
   defp do_start(supervisor, entity_id) do
+    # network identifier ->
+    # apply(1, 2)
+
     starting =
       DynamicSupervisor.start_child(supervisor, %{
         # Why does DynamicSupervisor require an id, you cannot delete by it.
@@ -39,12 +45,21 @@ defmodule Pachyderm do
   def init(init) do
     %{config: config, entity_id: entity_id} = init
 
-    {:ok, storage_events} = EventStore.read_stream_forward(entity_id, 0)
+    {:ok, storage_events} =
+      case EventStore.read_stream_forward(entity_id, 0) do
+        {:ok, storage_events} ->
+          {:ok, storage_events}
+
+        {:error, :stream_not_found} ->
+          {:ok, []}
+      end
+
     events = Enum.map(storage_events, & &1.data)
+    entity_state = Enum.reduce(events, %{count: 0}, &Example.Counter.apply/2)
 
     {:ok,
      %{
-       entity_state: %{count: 0},
+       entity_state: entity_state,
        events: events,
        followers: %{},
        config: config,
@@ -61,7 +76,7 @@ defmodule Pachyderm do
       entity_id: entity_id
     } = state
 
-    case handle(message, entity_state) do
+    case Example.Counter.execute(message, entity_state) do
       {:ok, reaction} ->
         {actions, new_events} =
           case reaction do
@@ -81,10 +96,9 @@ defmodule Pachyderm do
             %EventStore.EventData{event_type: nil, data: event}
           end
 
-        EventStore.append_to_stream(entity_id, length(saved_events), storage_events)
-        |> IO.inspect()
+        :ok = EventStore.append_to_stream(entity_id, length(saved_events), storage_events)
 
-        entity_state = Enum.reduce(new_events, entity_state, &apply_event/2)
+        entity_state = Enum.reduce(new_events, entity_state, &Example.Counter.apply/2)
 
         for {_monitor, follower} <- followers do
           send(follower, {:events, new_events})
@@ -118,34 +132,5 @@ defmodule Pachyderm do
   def handle_continue({:send_follower, follower, events}, state) do
     send(follower, {:events, events})
     {:noreply, state}
-  end
-
-  defmodule Mailer do
-    def dispatch(message, %{test: pid}) do
-      send(pid, message)
-    end
-  end
-
-  defmodule Increased do
-    defstruct [:amount]
-  end
-
-  defp handle(:increment, state) do
-    %{count: count} = state
-    events = [%Increased{amount: 1}]
-
-    if count + 1 == 5 do
-      actions = [{Mailer, %{alert: 5}}]
-      {:ok, {actions, events}}
-    else
-      {:ok, events}
-    end
-  end
-
-  # reduce
-  defp apply_event(%Increased{amount: 1}, state) do
-    %{count: count} = state
-    count = count + 1
-    %{state | count: count}
   end
 end
