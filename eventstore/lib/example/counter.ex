@@ -7,6 +7,10 @@ end
 defmodule Example.Counter do
   @behaviour Pachyderm.Entity
 
+  def new_address() do
+    {__MODULE__, UUID.uuid4()}
+  end
+
   defmodule Increased do
     defstruct [:amount]
   end

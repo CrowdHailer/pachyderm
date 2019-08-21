@@ -4,7 +4,7 @@ defmodule ExampleTest do
   test "counter integration" do
     {:ok, supervisor} = Pachyderm.EntitySupervisor.start_link(%{test: self()})
 
-    first_counter = UUID.uuid4()
+    first_counter = Example.Counter.new_address()
     assert {:ok, %{count: 1}} = Pachyderm.deliver(supervisor, first_counter, :increment)
     assert {:ok, %{count: 2}} = Pachyderm.deliver(supervisor, first_counter, :increment)
 
@@ -28,7 +28,7 @@ defmodule ExampleTest do
     assert_receive {:events, [%Example.Counter.Increased{amount: 1}]}
     assert_receive %{alert: 5}
 
-    other_counter = UUID.uuid4()
+    other_counter = Example.Counter.new_address()
     assert {:ok, %{count: 1}} = Pachyderm.deliver(supervisor, other_counter, :increment)
 
     pid = :global.whereis_name(first_counter)

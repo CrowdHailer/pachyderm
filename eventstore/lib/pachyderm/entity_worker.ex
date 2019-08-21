@@ -1,20 +1,19 @@
 defmodule Pachyderm.EntityWorker do
   @behaviour GenServer
 
-  def start_link(entity_id, config) do
-    GenServer.start_link(__MODULE__, %{config: config, entity_id: entity_id},
-      name: {:global, entity_id}
-    )
+  def start_link(entity, config) do
+    GenServer.start_link(__MODULE__, %{config: config, entity: entity}, name: {:global, entity})
   end
 
   @doc false
-  def start_supervised(config, entity_id) do
-    start_link(entity_id, config)
+  def start_supervised(config, entity) do
+    start_link(entity, config)
   end
 
   @impl GenServer
   def init(init) do
-    %{config: config, entity_id: entity_id} = init
+    %{config: config, entity: entity} = init
+    {entity_module, entity_id} = entity
 
     # Need to start the subscription before hand
     {:ok, storage_events} =
@@ -27,7 +26,7 @@ defmodule Pachyderm.EntityWorker do
       end
 
     events = Enum.map(storage_events, & &1.data)
-    entity_state = Enum.reduce(events, %{count: 0}, &Example.Counter.apply/2)
+    entity_state = Enum.reduce(events, %{count: 0}, &entity_module.apply/2)
 
     {:ok,
      %{
@@ -35,6 +34,7 @@ defmodule Pachyderm.EntityWorker do
        events: events,
        followers: %{},
        config: config,
+       entity_module: entity_module,
        entity_id: entity_id
      }}
   end
@@ -45,10 +45,11 @@ defmodule Pachyderm.EntityWorker do
       events: saved_events,
       followers: followers,
       config: config,
+      entity_module: entity_module,
       entity_id: entity_id
     } = state
 
-    case Example.Counter.execute(message, entity_state) do
+    case entity_module.execute(message, entity_state) do
       {:ok, reaction} ->
         {actions, new_events} =
           case reaction do
@@ -70,7 +71,7 @@ defmodule Pachyderm.EntityWorker do
 
         :ok = EventStore.append_to_stream(entity_id, length(saved_events), storage_events)
 
-        entity_state = Enum.reduce(new_events, entity_state, &Example.Counter.apply/2)
+        entity_state = Enum.reduce(new_events, entity_state, &entity_module.apply/2)
 
         for {_monitor, follower} <- followers do
           send(follower, {:events, new_events})
