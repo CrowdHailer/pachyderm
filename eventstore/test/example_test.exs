@@ -2,11 +2,7 @@ defmodule ExampleTest do
   use ExUnit.Case
 
   test "counter integration" do
-    {:ok, supervisor} =
-      DynamicSupervisor.start_link(
-        strategy: :one_for_one,
-        extra_arguments: [%{test: self()}]
-      )
+    {:ok, supervisor} = Pachyderm.EntitySupervisor.start_link(%{test: self()})
 
     first_counter = UUID.uuid4()
     assert {:ok, %{count: 1}} = Pachyderm.deliver(supervisor, first_counter, :increment)
