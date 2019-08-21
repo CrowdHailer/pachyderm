@@ -110,10 +110,11 @@ Retries, timeouts and acknowledgement can all be tried on top.
 
 It might be required to have a reliable timeout mechanism. (maybe not, needs further thought)
 So when an entity is restarted any existing timers should be checked.
-
+Process
 When writing to a database all events will be written in a single transaction.
 That transaction could be left running until all the sideeffect handlers have run,
 if these where to write to a task queue in the same transaction, then sideeffects would be reliably retryable.
 
 
 Internal state working state activate/execute
+commanded rebuild before subscribe?
