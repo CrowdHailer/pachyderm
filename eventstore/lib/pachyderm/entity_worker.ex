@@ -19,6 +19,10 @@ defmodule Pachyderm.EntityWorker do
     %{config: config, entity: entity} = init
     {entity_module, entity_id} = entity
 
+    # If down just read from cursor.
+    # By default always handle double events
+    # Is there any interruption API for if a subscription connection is lost,
+    # Do transient subscriptions work
     :ok = EventStore.subscribe(entity_id)
     # Need to start the subscription before hand
     {:ok, storage_events} =
@@ -66,7 +70,7 @@ defmodule Pachyderm.EntityWorker do
           end
 
         entity = {entity_module, entity_id}
-        Pachyderm.Log.append(entity, length(saved_events), new_events)
+        :ok = Pachyderm.Log.append(entity, length(saved_events), new_events)
         # TODO test validity of actions before saving events
         events = saved_events ++ new_events
         entity_state = Enum.reduce(new_events, entity_state, &entity_module.apply/2)

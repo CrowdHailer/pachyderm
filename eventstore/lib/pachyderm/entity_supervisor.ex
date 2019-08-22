@@ -1,7 +1,7 @@
 defmodule Pachyderm.EntitySupervisor do
   def start_link(entity_config, options \\ []) do
     DynamicSupervisor.start_link(
-      [strategy: :one_for_one, extra_arguments: [entity_config]] ++ Keyword.take(options, :name)
+      [strategy: :one_for_one, extra_arguments: [entity_config]] ++ Keyword.take(options, [:name])
     )
   end
 
