@@ -6,6 +6,7 @@ end
 
 defmodule Example.Counter do
   @behaviour Pachyderm.Entity
+  @initial_state %{count: 0}
 
   def new_address() do
     {__MODULE__, UUID.uuid4()}
@@ -17,6 +18,7 @@ defmodule Example.Counter do
 
   @impl Pachyderm.Entity
   def execute(:increment, state) do
+    state = state || @initial_state
     %{count: count} = state
     events = [%Increased{amount: 1}]
 
@@ -30,6 +32,7 @@ defmodule Example.Counter do
 
   @impl Pachyderm.Entity
   def apply(%Increased{amount: 1}, state) do
+    state = state || @initial_state
     %{count: count} = state
     count = count + 1
     %{state | count: count}

@@ -35,7 +35,7 @@ defmodule Pachyderm.EntityWorker do
       end
 
     events = Enum.map(storage_events, & &1.data)
-    entity_state = Enum.reduce(events, %{count: 0}, &entity_module.apply/2)
+    entity_state = Enum.reduce(events, nil, &entity_module.apply/2)
 
     {:ok,
      %{
