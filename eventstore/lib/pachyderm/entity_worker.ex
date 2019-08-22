@@ -48,6 +48,7 @@ defmodule Pachyderm.EntityWorker do
      }}
   end
 
+  @impl GenServer
   def handle_call({:message, message}, _from, state) do
     %{
       entity_state: entity_state,
@@ -104,6 +105,7 @@ defmodule Pachyderm.EntityWorker do
     {:reply, {:ok, count}, state, {:continue, {:send_follower, follower, events}}}
   end
 
+  @impl GenServer
   def handle_info({:events, recorded_events}, state) do
     state = catchup(recorded_events, state)
     {:noreply, state}
@@ -144,6 +146,7 @@ defmodule Pachyderm.EntityWorker do
     catchup(rest, state)
   end
 
+  @impl GenServer
   def handle_continue({:send_follower, follower, events}, state) do
     send(follower, {:events, events})
     {:noreply, state}

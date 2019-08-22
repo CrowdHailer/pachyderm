@@ -7,6 +7,7 @@ defmodule Pachyderm.EntitySupervisor do
 
   # get_worker
   # find_worker -> perhaps this module should only return already started a higher level for integration
+  # When two started, i.e. pulled from pg2, hash pid and kill one with lower hash
   def start_worker(supervisor, entity) do
     starting =
       DynamicSupervisor.start_child(supervisor, %{

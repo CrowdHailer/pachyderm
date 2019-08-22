@@ -74,7 +74,7 @@ def handle(%SignUp{email: email}, state) do
 end
 ```
 
-Once events are committed, `MyApp.Mailer.dispach(message, config)` will be called.
+Once events are committed, `MyApp.Mailer.dispatch(message, config)` will be called.
 
 It is up to the implementer to make sure no side effects happen in the `handle` function.
 Elixir/erlang cannot guarantee that something has not been done.

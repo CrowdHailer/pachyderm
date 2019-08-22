@@ -1,4 +1,7 @@
 defmodule Example.Mailer do
+  @behaviour Pachyderm.Effect
+
+  @impl Pachyderm.Effect
   def dispatch(message, %{test: pid}) do
     send(pid, message)
   end
