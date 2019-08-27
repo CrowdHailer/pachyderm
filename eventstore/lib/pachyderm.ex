@@ -6,10 +6,10 @@ defmodule Pachyderm do
   end
 
   # This might not survive as a feature, just read from event source
-  def follow(supervisor, entity, cursor) do
-    {:ok, pid} = Pachyderm.EntitySupervisor.start_worker(supervisor, entity)
-    GenServer.call(pid, {:follow, cursor})
-  end
+  # def follow(supervisor, entity, cursor) do
+  #   {:ok, pid} = Pachyderm.EntitySupervisor.start_worker(supervisor, entity)
+  #   GenServer.call(pid, {:follow, cursor})
+  # end
 
   # network identifier ->
 end

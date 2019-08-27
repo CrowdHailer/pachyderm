@@ -29,7 +29,7 @@ def apply(event, state) do
 end
 ```
 
-It is possible to use this model for a state based system buy having all events be replace state events.
+It is possible to use this model for a state based system by having all events be replace state events.
 
 ```elixir
 def handle(message, state) do
@@ -76,7 +76,7 @@ end
 
 Once events are committed, `MyApp.Mailer.dispatch(message, config)` will be called.
 
-It is up to the implementer to make sure no side effects happen in the `handle` function.
+It is up to the implementer to make sure no side effects happen in the `execute` function.
 Elixir/erlang cannot guarantee that something has not been done.
 
 I don't believe there is any harm in having a sidecause in the handle function,
@@ -120,3 +120,11 @@ There should be a way of committing snapshot/query module in the same transactio
 
 Internal state working state activate/execute
 commanded rebuild before subscribe?
+
+## Test
+
+```
+docker-compose up
+mix do event_store.drop, event_store.create, event_store.init
+mix test
+```
