@@ -1,8 +1,5 @@
-version: '2'
-
-services:
   db:
-    image: "postgres:9.6.9"
+    image: "postgres:11.2"
     environment:
       - POSTGRES_USER=elmer
       - POSTGRES_PASSWORD=patchwork

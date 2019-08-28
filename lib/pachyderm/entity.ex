@@ -1,22 +1,58 @@
 defmodule Pachyderm.Entity do
-  @type id :: term
-  @type message :: term
-  @type state :: term
-  @callback init(id) :: state()
-  @callback activate(message, state) :: state
+  @moduledoc """
+  A `Pachyderm.Entity` describes the behaviour of a durable actor.
 
-  defmacro __using__(_opts) do
-    quote location: :keep, bind_quoted: [mod: __MODULE__] do
-      @behaviour mod
-      def init(id) do
+  Implementations for `handle/2` and `update/2` must be provided.
+  The `init/0` callback is optional, if not provided the initial state will be `nil`
+  """
+
+  # The types could be struct. even if only described as map with key
+  @type message :: any
+  @type state :: any
+  @type event :: any
+
+  @callback init() :: state
+  @callback handle(message, state) :: {:ok, [event]}
+  @callback update(event, state) :: state
+
+  @optional_callbacks init: 0
+
+  @doc false
+  def initial_state(reference) do
+    {module, _id} = reference
+
+    case function_exported?(module, :init, 0) do
+      true ->
+        module.init()
+
+      false ->
         nil
-      end
-
-      def activate(_message, _state) do
-        raise "attempted to call #{unquote(mod)} but no activate/2 clause was provided"
-      end
-
-      defoverridable mod
     end
+  end
+
+  @doc false
+  def handle(reference, message, entity_state) do
+    {module, _id} = reference
+
+    case module.handle(message, entity_state) do
+      {:ok, events} when is_list(events) ->
+        {:ok, {events, []}}
+
+      {:ok, {events, effects}} ->
+        {:ok, {events, effects}}
+    end
+  end
+
+  @doc false
+  def reduce(reference, events) do
+    reduce(reference, events, initial_state(reference))
+  end
+
+  def reduce(reference, events, initial_state) do
+    {module, _id} = reference
+
+    Enum.reduce(events, initial_state, fn event, state ->
+      module.update(event, state)
+    end)
   end
 end

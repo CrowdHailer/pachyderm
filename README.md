@@ -1,489 +1,323 @@
 # Pachyderm - an elephant never forgets
 
-**Immortal actors for many machines.**
+A virtual/immortal/durable/resilient/global actor "always exists" and "never fails"
+
+## Usage
+
+### Defining an Entity
 
 ```elixir
 defmodule MyApp.Counter do
-  use Pachyderm.Entity
+  @behaviour Pachyderm.Entity
+  # Messages
+  alias MyApp.Counter.{Increment, ...}
+  # Events
+  alias MyApp.Counter.{Increased, ...}
 
-  def init(_entity_id), do: 0
-  def activate(_message, state), do: {[], state + 1}
+  # Callbacks
+  def init() do
+    %{count: 0}
+  end
+
+  def handle(%Increment{}, _state) do
+    events = [%Increased{amount: 1}]
+    {:ok, events}
+  end
+
+  def update(%Increased{amount: amount}, state = %{count: current}) do
+    state = %{state | count: current + amount}
+  end
 end
 ```
 
-- Both `init/1` and `activate/2` are callbacks of the `Pachyderm.Entity`
-- `init/1` is optional, default implementation returns `nil`.
-- `activate/2` must always return a two tuple.
-  The first element being a list of `{address, message}` to send and the second being the updated state.
-- The address of an entity is always `{module, term}`.
+*In event sourcing execute/apply would be the equivalent terms to handle/update.
+This library chooses to use familiar actor terminology over event source specific terminology.*
+
+Both the `handle/2` and `update/2` callbacks MUST NOT create any side effects, see [Entity side effects]() for how to create side effects.
+
+### Sending messages to an Entity
 
 ```elixir
-$ iex -S mix
+type = MyApp.Counter
+id = UUID.uuid4()
+reference = {type, id}
 
-iex> alias Pachyderm.Ecosystems.LocalDisk
-# Pachyderm.Ecosystems.LocalDisk
-iex> counter = {MyApp.Counter, "my_counter"}
-# {MyApp.Counter, "my_counter"}
-
-iex> LocalDisk.send_sync(counter, :increment)
-# {:ok, 1}
-iex> LocalDisk.send_sync(counter, :increment)
-# {:ok, 2}
-
-iex> LocalDisk.follow(counter)
-# {:ok, 2}
-iex> LocalDisk.send_sync(counter, :increment)
-# {:ok, 3}
-
-iex> flush()
-# {{MyApp.Counter, "my_counter"}, 3}
-# :ok
+{:ok, state} = Pachyderm.send(reference, %Increment{})
+# => {:ok, %{count: 1}}
 ```
 
-*NOTE: if you retry this example in a new iex session the counter will remember previous state.*
+*The id of an entity MUST be uuid that is unique across all entity types. There are plenty of uuids to go around and it allows for quicker lookups when starting entities*
 
-## Message passing example
+### Entity side effects
+
+An entity creates side effects by, optionally, returning a list of effects in addition to the the list of events.
+Pachyderm dispatches these effects once the events have be committed to storage.
 
 ```elixir
-defmodule MyApp.PingPong do
-  use Pachyderm.Entity
+defmodule MyApp.Counter do
+  def handle(%Increment{}, %{count: count}) do
+    events = [%Increased{amount: 1}]
 
-  def activate({:ping, client}, nil), do: {[{client, :pong}], :pinged}
-  def activate(:pong, nil), do: {[], :ponged}
+    if count == 9 do
+      effects = [{MyApp.AdminMailer, %{threshold: 10}}]
+      {:ok, {events, effects}}
+    else
+      {:ok, events}
+    end
+  end
 end
 ```
 
-```elixir
-iex> alias Pachyderm.Ecosystems.LocalDisk
-# Pachyderm.Ecosystems.LocalDisk
-iex> alice = {MyApp.PingPong, "alice"}
-# {MyApp.PingPong, "alice"}
-iex> bob = {MyApp.PingPong, "bob"}
-# {MyApp.PingPong, "bob"}
+Side effects have at most once semantics. This is because the events are committed before dispatching effects and it is always possible for the dispatch to fail/crash.
 
-iex> LocalDisk.follow(alice)
-# {:ok, nil}
-iex> LocalDisk.follow(bob)
-# {:ok, nil}
-
-# Alice pings Bob
-iex> LocalDisk.send_sync(bob, {:ping, alice})
-# {:ok, :pinged}
-
-iex> flush()
-# {{MyApp.PingPong, "bob"}, :pinged}
-# {{MyApp.PingPong, "alice"}, :ponged}
-# :ok
-```
-
-TODO add warning if code calls `send`/`send_sync` within an activate callback.
-
-## Ecosystems
-
-An ecosystem is a collection of entities an the environment they are executing in.
-An application would be expect to be running only one ecosystem.
-
-Ecosystems are isolated from one another.
-Starting multiple ecosystems is mostly used for testing.
+*A future feature should allow persisting effects to a task queue in the same transaction as events are committed.*
 
 ```elixir
-setup %{} do
-  ecosystem = LocalDisk.participate(random_string())
-  {:ok, ecosystem: ecosystem}
-end
+defmodule MyApp.AdminMailer do
+  @behaviour Pachyderm.Effect
 
-test "state is preserved between activations", %{ecosystem: ecosystem} do
-  id = {Counter, "my_counter"}
-  assert {:ok, 1} = LocalDisk.send_sync(id, :increment, ecosystem)
-  assert {:ok, 2} = LocalDisk.send_sync(id, :increment, ecosystem)
+  @admin_email "admin@myapp.example"
+
+  def dispatch(%{threshold: threshold}, _config) do
+    body = "The threshold was reached at a count of #{threshold}"
+
+    EmailProvider.send(@admin_email, body)
+  end
 end
 ```
 
-The `LocalDisk` ecosystem is for development purposes and works for a single node only.
-Use this ecosystem for development purposes without requiring any further dependencies.
+*The config value can be passed as a third argument to `Pachyderm.send`.*
 
-Entity state is preserved to disk and so survives restarts.
-This is useful for checking the behaviour of updated code using old saved entity states.
 
-See the roadmap for progress on multi-node ecosystems,
-one uses the database to guarantee consistency and one native to an erlang cluster.
+## Testing
 
-## PgBacked ecosystem
+```
+docker-compose up
+mix do event_store.drop, event_store.create, event_store.init
+mix test
+```
 
-This ecosystem ensures only a single worker is running for any entity accross multiple machines by use of `:global` and [pg_advisory_lock](https://www.postgresql.org/docs/9.4/static/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS)
+## Design notes
 
-1.
+### Entities vs Processes
 
-##### Notes
+The core computational unit in Pachyderm is an Entity.
 
-- It's possible to start more than one supervisor/registry/pg session for each ecosystem.
-  pg_advisory_lock ensures uniqueness between machines.
-  global ensures uniqueness on machines.
-- For efficient lookup of processes a client needs ecosystem_id (to pass to global) and register pid to start a new process
-- A separate register process is needed (instead of letting a worker take their own locks) as this process is responsible for setting up a monitor to release the pg_advisory_lock.
-- If the pg_session dies all locks are lost and so all workers must die, This does not need to be true if all writes go through the same session.
-- The desire to start a new registry process and session for each ecosystem might be unwise.
-  A single pg_session could be used by several registries.
-  A single registry could use several pg_sessions although it would need to remember which lock was on which session to release it.
-  This could have a race condition where a lock needs to be released but a write goes through another session so would need to guarantee that the session with the lock is used for the write.
-  You can write a query that takes lock j equalling entity id but might be slow
+Entities, like processes are actors, i.e. they are a primitive of concurrent computation.
+- All messages handled by an entity see the latest state of that entity.
+- The state history of an entity has a single, well defined order.
 
-# Roadmap
+An entity differs from a process because it can be restarted and moved between machines.
 
-### System simulation and property testing
+### Events as state primitive
 
-This part of the project already includes the ability to apply a series of events to a simulated ecosystem by using `Pachyderm.Ecosystems.Simulation.run/2`.
-There is also an `exhaust` function that will exhaustivly explore every possible ordering of message delivery.
-This can be used to see if a system is deterministict under reordering.
+The underlying storage required by Pachyderm is an append only log.
+For this reason an event based API is exposed, rather than one based on the current state.
 
-- [ ] When an activation errors, show the list of all messages received by that entity using `__STACKTRACE__`
-  This should be implemented to look like the "message received" code that exists in GenServer.
-- [ ] Add a maximum message depth to the run of the simulation.
-- [ ] Add a `Cohort` module that is responsible for running parrallel instances of an ecosystem.
-  This should replace the `exhaust` function.
-- [ ] Use a stream generator to explore the space of possible message orderings.
-- TCP is a great example case for exploring.
-  Explain what calm is.
-  with just a server you can check message reordering.
-  with dropped messages you can show output is always a subset of the full output.
-  with duplicated messages you can show full calm.
-  duplicates can be achieved by just putting messages in twice.
-- [ ] Be able to switch out module implementations for test purposes.
-- Have `activating` work the same as all other ecosystems, i.e. functions take a reference and state is implicitly updated.
-  This can be achieved by putting the working state in an Agent, this can be supervised by the `:pachyderm_simulated` app
+It is possible to use this model for a state based system by having all events be replace state events.
+For the counter example this could look like.
 
-### At least once message delivery for `LocalDisk`
+```elixir
+def handle(%Increment{}, %{count: current}) do
+  events = [%NewCount{value: current + 1}]
+  {:ok, events}
+end
 
-The LocalDisk ecosystem of entities has at most once message delivery.
-It uses casts to send all outgoing messages after executing each iteration of the entity.
+def update(%NewCount{value: new_count}, _state) do
+  %{count: new_count}
+end
+```
 
-Instead it could do the following steps
+### Globally unique events, NOT processes.
 
-1. save state and messages to dets.
-2. return to caller using `GenServer.reply(from, {:ok, state})`.
-3. Use `GenServer.call` to send messages to entities.
-4. save state and empty list of messages to dets.
-5. On startup the worker should check the list of outbound is empty before accepting new messages.
-6. The state of the worker should be transient so it is restarted after crash to resend messages, but shutting down after a timeout will close the process.
+There may be more than one worker process alive for an entity at any given time.
+This does not break any guarantees because a message is not considered handled by an entity until the events are committed to storage.
+**All storage backends must expose an optimistic concurrency control mechanism.**
 
-**Question:** what if after all this effort the receiver crashes while processing the message.
-Does that count as a delivery?
-Would the system retry forever?
+Processing messages for a given entity will be handled by running workers where possible.
+Workers are registered using `:global`.
 
-### Discussion of software updates
+Worker registration is only to save starting processes, all the guarantees are handled at the storage layer.
+This also means the library should work just as well in an unclustered environment.
 
-Saving structs to disk will leave them in the old format.
-There should be a version key that can be used to upgrade
+Note in an unclustered setup, it is possible that a worker for an entity gets started on every machine.
+In such a case scaling the number of machines wouldn't reduce load.
 
-### Single node deploy on digital ocean or some such
+### Described side effects
 
-I suggest the rock paper scissors implementation
+All side effects from handling a message must happen after events are committed.
 
-### Runtime Deadletter queue
+For example.
+- Two messages (message A) and (message B) are processed concurrently, potentially on two node that cannot communicate.
+- The events from one message (message A) are committed to storage successfully.
+- Events from the other message (message B) cannot be saved, as these events were calculated from a stale entity state.
+- **Side effects from handling message B must not exist, only the effects from handling message A**
+- Message B is considered lost, if reliable delivery is required then retries and message acknowledgement can be layered on top
 
-For those cases the simulator did not catch
+The Pachyderm effects API exists to allow Entities to interact with other parts of the system in a safe manner.
 
-### Typed Actors (entities)
+It is up to the developer to make sure no side effects happen in the `handle` function.
+Elixir/erlang cannot enforce this.
 
-I can see several ways to make typed actors a reality in this model.
-It is easier because of the reduced scope of what an actor can do.
-However erlang/Elixir code can always do more than a function spec indicates,
-however I am happy with the responsibility of writing pure `activate` functions to rest with the users of this library.
+##### Question
 
-1. This could be done my making the envelopes, combination of address and message, an opaque type.
-  If each entity module is the only place that can make this opaque type.
-  e.g. `Counter.post(counter_id, :increment)`.
-  Then dialyzer can be used to check that all envlopes are valid, and within Pachyderm envelopes are the only way to cause side effects.
+I don't believe there is any harm in having a sidecause in the handle function,
+such as generating a random number or getting the current date.
+It may be easier to work with only pure functions, but I am not sure it is necessary (Needs further thought)
 
-2. By leaning on the Elixir macrosystem, an ecosystem can be built that defines all of the actor types it has.
-  e.g. `use Pachyderm.Ecosystem.InMemory, [Counter]`.
-  At this point we can require every Entity type to also export types for `id` and `message`.
+##### Message vs Event Based
 
-  NOTE: there is an error in dialyzer, which requires adding specs to the post function.
-  Dialyzer does not support multi headed function specs.
+I consider all effects as a message to be sent somewhere, hence why the function on Mailer is called dispatch rather than run/execute
 
-  ```elixir
-  def foo(:a, :b), do: :ok
-  def foo(:x, :y), do: :ok
+There are discussions of event vs message based systems online.
+This is a message based approach, the event based approach would be to have sideeffects derrived from following the event log.
 
-  # derived spec
-  @spec foo(:a | :x, b: :y) :: :ok
+Both approaches have there advantages.
+- Message based moves more logic into the entity (it would have existed in subscribers in an event system)
+  This allows more of an application to be tested at a pure level inside the entity functions.
+- Message based is more aligned with the erlang process model for familiarity
+- Event based subscriptions have the added complexity of requiring a durable cursor for progress they have made through the event log
+- Event based writes everything to storage, a problem if the event should trigger sending an email with one time code that can't be saved in DB
+- Message based is more likely to be at most once, event based at least once. Messages can be lost, vs subscription cursor failing to be updated. Probably this is not a hard and fast separating, see sideeffect guarantees and subscription cursor could be updated before processing effect.
 
-  # correct spec
-  @spec foo(:a, b:) :: :ok
-  @spec foo(:x, y:) :: :ok
-  ```
+It is easier to build at least once delivery on top of at most once delivery.
+It also might be possible to have both by adding the ability to subscribe to an event log in addition to the effects API described here.
+Effect could also be to write to "all" stream and have no default ability to follow an entity.
 
-3. Decouple the concepts of entity type and address type.
-  Entities should be able to post and address that gives recipients only a subset of message types to send.
+### SideEffect guarantees
 
-4. Add a function to type the id's of each kind of entity.
-  This can have a default implementation of `def id(str), do: {__MODULE__, str}`
+There is no guarantee that a side effect will run successfully, the real world does that.
+If side effects are considered as messages out then it is always possible they can be lost.
 
-### Event sourced entities
+This is also fine the actor model makes no guarantees about message delivery.
+Retries, timeouts and acknowledgement can all be layered on top.
 
-With the simple model, the whole state is returned which means it is not possible to control what updates a follower sees.
-I want to investigate event sourcing each entity.
+It might be required to have a reliable timeout mechanism. (maybe not, needs further thought)
+So when an entity is restarted any existing timers should be checked.
+Process
 
-This appears to be a lower level of abstraction,
-i.e. it is always possible to model a state based system by using a single event of type entity_updated.
+When writing to a database all events will be written in a single transaction.
+That transaction could be left running until all the sideeffect handlers have run,
+if these where to write to a task queue in the same transaction, then sideeffects would be reliably retryable.
 
-### DbBacked ecosystem
+### Use Entity references as side effects
 
-I think this is a good way to prototype multi-node
+It would be easy to return `{reference, message}` from a handle function.
+The assumption here is that the dispatch action should be to send the message to the referred to entity.
 
-By using `:global` + locks on the DB, uniqueness of activations can be guaranteed across nodes.
-Steps to running an activation.
+This has not been done yet. I am unsure if there is a sensible default for retrying to send the message/task durability
+Perhaps it would work if there could be exactly once semantics by marking the task as done in the same transaction as the receiving entity receives events.
 
-1. See if the entity is already running in `:global`.
-2. Take out advisory lock for entity, if this fails retry search in global.
-3. Register new instantiation of entity in `:global`.
+Tasks that crash should be marked as crashed for a specific version of the module, if it changes they should automatically be retried.
 
-https://github.com/elixir-ecto/ecto/blob/master/integration_test/pg/deadlock_test.exs
+### Sync Snapshots for Entity lookup
 
-### Events and DB
+There should be a way of committing snapshot/query module in the same transaction
+Currently this is entity_state but could be working_state
 
-This is even easier to resolve conflicts, it is also the closest to the current system I am running.
+### Entity references
 
-Would need and events table
+All entities can be addressed by their reference, this is a combination of type and id.
 
-- id, monotonic db created helpful to read the whole table
-- type, e.g. user_signed_up might want to split to entity type and event type
-- event_version, used to update versions.
-- entity_id, entity ids are unique across all kinds not a hard requirement but easier for filtering
-- event_count, unique in combination with entity_id
-- transaction_count(command_id), groups events that were committed in the same step, should reference command
-- payload, i think safest to just have this as a binary for kafka compatibility
+This was the most pragmatic approach, when starting out it is intuitive to ascribe types to entities.
+One of the problems with entity types is that entities last forever and so the concept of type might evolve overtime.
 
-commands table, join with events for a single transaction.
-This table should have a processed true of false flag, this can leave commands in the Deadletter queue.
+It is possible to have a system with only one type of entity and have the event history fully describes the state of an entity including it's type.
+This is however unwieldy, the behaviour for all entity types ends up in a single callback module.
 
-uniqueness between entity and transaction_id(interaction_id) gives security against conflicts.
-advisory locks are not necessary but improve efficiency when running background task to complete commands that where not executed in normal flow.
+Consideration of this issue is why entities are uniquely identified by their id only.
+It allows systems to evolve.
+Entities that were created from one module can be, in the systems future, handled by multiple modules.
+For example the `User` module could evolve to `LegacyUser` and `NewUser` depending on which API endpoints are used to interact with the system.
 
-Advisory locks are necessary if in memory state is going to be used in queries.
-If not process running on one machine can miss updates on the table.
-Even trailing the DB changelog can still have a situation where a client sends message to node a and the reads node b process before it has updated.
-The whole point of this system is to not have eventual consistency.
+Performance also improves by limiting entity id's to `uuid4` only.
 
-This is a memory image, and would work very nicely.
+### Return/Reply values
 
-Memory image can be augmented by having a command table. would need hooks in the apply event step.
-Needs entity timeouts but that should be everything. can use ets for image but if entity crashes should be built from zero state
-snapshotting is a different process.
+There are two options for this
 
-Events should implement the event type. need to turn struct to Ecto record thing.
-Would be great if could use in memory localnode thing for development.
-Examples should definetly include update from previous version.
-If smart can use the same code to read command from request body as command payload.
+#### Result return values
 
-api-version is not the same as entity_version, maybe table should be system/schema_version.
-That would mean clients could send api_version which matched db.
-Also possible to have command version.
-Also because events are committed it's not required to be able to read old commands from db to current Struct.
+```
+{:ok, [event]}
+{:ok, {[event], [effect]}}
+{:error, reason}
+```
+- Limits options, potentially a good thing.
+- Makes it clear that returning an error value to a caller means no events were created.
 
-Make project called monies with stripe demo.
+#### GenServer inspired reply values
 
-### InMemory distributed erlang
+```
+{:reply, {:ok, anything}, [event]}
+{:reply, {:ok, anything}, [event], [effect]}
+{:reply, {:error, reason}, [], []}
+```
+- Can have error response and no events. Good/Bad?
+- Reply often based on the state, state not calculated until after update function called, often end up working things out twice.
+- Add another tuple argument for continuations/timeout. Might be very ugly in OK case
 
-For this to work there needs to be a guarantee that nodes will all agree the order of messages received at each entity.
-As long as this is true it is not even that important for at least/most once delivery.
-I think the most useful semantics are at least once because idempotency can be added to activations.
+#### Sending full state as part of reply value
 
-This backend will need to implement some consensus protocol.
-I do not think it can be standard Raft because I don't want an entity to be frozen after failing to handle a message.
+The simplest API is to have the new state returned when sending a message to an entity.
 
-There were some further questions about raft here https://elixirforum.com/t/questions-about-raft/14634
-Raft does have the nice feature that a node discovering it is often nearer a client could start a leader election for itself.
+Sending the full state back is wasteful if it, is large, is not needed, is transferred between machines.
+An explicit reply can be set in `handle` but what if clients sending the same update what different views.
 
-The throughput of the consensus mechanism is not important.
-System throughput is increased by having lots of statemachines that can run in parrallel.
-Reducing latency is a desirable feature. 1 round trip is possible if a node has already done some prework to get permission to write.
+To reduce the amount sent there could be a Query API where an anonymous function is sent and only that result returned.
+This separates logic from the entity and so a :query callback might be better. clients just send a simple/expected query and the result is generated from that.
 
-In some cases. i.e. when confirming linearizability of messages from a client,
-it would be desirable to have a system that worked very fast in the case of no contention
-but then took much longer to resolve conflicts the assumption being conflict resolution is just a way to block bad actors.
+If on separate nodes you might not want to send message then query, requiring some kind of message then query interface
+If sending only a reduced value back the new cursor (stream_version) is probably the most useful. It allows a client to listen for all events.
 
-It would also be acceptable to have a system that froze in node downs as long as it never conflicted.
+To reduce messages between nodes could have a cache process on every node, queries only go to local, commands are sent via local which waits for event before running query and returning to caller.
+A follower on every node messes up scaling, more node doesn't increase free up memory.
+Also it doesn't really match a dist erl environment.
+My assumption is extra nodes are added for more memory, latency of sending messages between nodes is not important.
+Probably if latency is a problem, the best option is sticky sessions so normal lookup from Pachyderm results in intra node communicate in most cases.
 
-I want to avoid running leaders because an entity might remain dormant for a substantial period,
-therefore pinging the leader would be a wast of resources.
-It might be possible to batch leadership. i.e. node a is the leader for all entities a-f.
+I think we should stick with the simple for a while, most of the issues are for high performace cases.
 
-Raft implementation https://github.com/cdegroot/palapa/tree/master/erix
+#### Can Worker inactivity timeouts be a global setting?
 
-Talk about wooga/locker
-https://www.youtube.com/watch?v=ekcBAseo7Js
+A system where all entities can be active could have no timeouts, entities only restarted on deploy.
+In reality I think an entity is likely to know when it is no longer going to be activated. However even these cases might have the end state queried for some time.
 
-https://github.com/edwardbadboy/paxosd
+#### Should it be possible to have effects without events?
 
-##### A hundred impossibility proofs for distributed computing
-http://www.dtic.mil/dtic/tr/fulltext/u2/a216391.pdf
+I can't think of any good thing that will come out of this, it basically just skips all checks.
 
-#### Actor database
-http://rcardin.github.io/database/actor-model/reactive/akka/scala/2016/02/07/actorbase-or-the-persistence-chaos.html
-https://arxiv.org/pdf/1707.06507.pdf
+#### Should calculated state be one of the arguments to effect dispatch?
 
-##### Paxos
+This is another place where state can be worked out twice, in dispatch and update
 
-- This seamed a reasonably good into to single value paxos https://www.youtube.com/watch?v=d7nAGI_NZPk
-- Some other algorithms to check here https://www.youtube.com/watch?v=XUQJvMALfUA
-- Paxos made simple https://www.idi.ntnu.no/emner/tdt02/PaxosMadeSimple.pdf
+#### Non global address space using network_id
 
-Further resources
+It would be good to start more than one `EntitySupervisor` and have separate interacting environments (ecosystems) of entities.
+One way to handle this would be to have a network_id id column in EventStore and have all interaction with the DB scoped to a specific network_id.
+Different network identifier should be able to use different pools/db connections.
 
-- Just Say NO to Paxos Overhead: Replacing Consensus with Network Ordering https://syslab.cs.washington.edu/papers/nopaxos-tr16.pdf
-- Geo distribution of actor based services https://www.microsoft.com/en-us/research/wp-content/uploads/2017/01/Geo-Orleans-TR-012717.pdf
-- ??? https://people.eecs.berkeley.edu/~sylvia/cs268-2016/papers//approxsynch.pdf
-- Strong consistency models https://aphyr.com/posts/313-strong-consistency-models
-- Paxos on steroids https://tschottdorf.github.io/single-decree-paxos-tla-compare-and-swap#discussion-of-cas-paxos
-- https://github.com/gryadka/js
-- CASPaxos replicated state machines without logs https://arxiv.org/pdf/1802.07000.pdf
+In a global network of entities, creating a reference could take the environment as an argument so giving separate id's.
+This is rather reliant on the developer doing the right thing repetitavly.  
 
-##### Updates
+## TODO
 
-- Raft that saves events and not commands should have the same guarantees
-- I think it should be possible to make a paxos where the paxos-id chosen is generated from the hash of the content.
-- Is there a contention scenario where two nodes can fail to make progress while trying to send the same value?
-- If sending content to acceptor then acceptor can try to become proposor with remaining acceptors
-- Can you assume the proposor would accept, possibly not it you don't trust proposors i.e. clients.
+- If waiting on specific promises, entity MUST terminate if nothing to await on.
 
-##### Alt protocol
+- Single global process, some discussion on this, is it a safe way to have single global processes?
 
-- save events rather than commands,
-  - allows indeterminism in output because one event will fix.
-  - allows commands to be rejected
-- have ring of nodes where each tries to pass message to next 2/3 for reduced network chatter
-- try to localise execution, allows memoisation of results (i.e. state as derived from events)
-- a node will pass the message to the last node that committed when it receives a new call,
-  up to n times before it executes itself and just divests the result.
-  - this will potentially conflict with other events but the consensus manages that.
-  If it cannot pass message to master it will do the same
-  - the consideration of choosing a valid n is how expensive the computation might be and how frequently the messages come from other places.
-  - i.e. if geo separated nodes working for a user then might be reasonable to expect that mojority of requests come to the same node.
+https://yiming.dev/blog/2019/08/16/use-return-value-to-defer-decisions/
 
-If a node looses it's memory it must ask all others for it's state before it can re-gain it's identity.
+Old stuff https://github.com/CrowdHailer/pachyderm/commit/bd852b376e58c318183a60f1b8ddf18ada1fe6cc
 
-## Notes
-
-### Consistency / Availability / Partition Tolerance
-
-Pachyderm chooses consistency at all costs within an entity.
-Within an entity all activations are guaranteed to be run with latest state.
-
-The combination of `{module, term}` is an entities id.
-Only a single entity can be running at any time.
-
-**NOTE: The scope of this guarantee of uniqueness depends on the backend being used.
-The default backend for development purposes guarantees this for one node ONLY.**
-
-Make configuring or starting a backend a requirement
-
-### Immortal entities
-
-If an activation fails during exectution, the entity can still be reactivated with the previous persisted state. Followers of an entity will continue to receive updates.
-
-An entity should not make use of `self()` as it will change between activations.
-
-### Actor model
-
-Because sending a message to an entity will automatically create it;
-Pachyderm reduces the possible actions of an actor to only two kinds.
-
-1. Sending a message.
-2. Updating your own state.
-
-### Prior Art
-
-- whatthehook
-  - custom code is pushed by client and is JavaScript so this project has lots of things aroung vm/execution
-- Orleans/Erleans
-
-# Outside world
-
-Observation only by looking at state of entities.
-Easy to push in new messages. Just interupt with approprite new message
-or take existing world and start executing.
-Outside can watch and act. e.g. Have a payments to make actor.
-This is pulled off by an outside worker that adds messages when done.
-If we have at least once delivery we can just retry until done
-Test env might want to emulate retries
-
-### File storage for local backend
- Needs to reimplement a log writer for single node for reliable delivery
-
-### Partition on Username registration
-
-Because id can be generated no that the id responsible for Bob is "bo".
-`Pachyderm.activate({UsernameRegistration, "bo"}, {:register, "bob", {User, "32123132112"}})`
-Have a streaming listener on every node that acts as a cache.
-
-writes are not blocked because partitioning. reads do not hit the writers because of streaming.
-The immortal actor world view is then very nice.
-Talk at Elixir London meets
-This is probably the best motivation for an ability to send diffs. i.e. events.
-
-### CALM
-
-TCP derivation in a client, proxy server system that sends "hello," " World" "!"
-Show with reliable broadcast. Then show ordering issues, then message loss then duplication.
-
-### Separated idea of passive active entities
-
-The idea of an active entity is it will be automatically restarted on another machine.
-And not just in response to a to an external message.
-
-### Other notes
-
-- Sharded or ets backed supervisor for performance
-- Rename Counter.send calls Counter.handle
-- use `make_ref()` at compile time to ensure nodes are running the same types.
-
-- names for activate
-  - Or activate trigger handle
-  - react proceed
-  - Or message
-- can remove task and do everything inside a process
-
-## Below some old comments on Event sourcing I am keeping around
-
-# Event Sourcing in Elixir
-
-https://www.youtube.com/watch?v=fQPsTEgd48I
-https://www.youtube.com/watch?v=R2Aa4PivG0g
-
-https://tech.zilverline.com/2012/07/23/simple-event-sourcing-consistency-part-2
-
-Experiments with eventsourced implementations in elixir.
-
-### Opinions
-
-- Commands don't always produce the same events for a given state, Side effects can occur.
-- State must always be the same for a given application of state and event.
-- Events are undeniable event application cannot fail so event handle cant have side effects.
-- Entities should never exist in invalid states so sould be sent events grouped by transaction.
-- An uninitialised state should always accept a creation event therefore we can skip a creation command and directly add creation event to the store
-
-### Counter using Protocols
-An event sourced counter with the follow features.
-- In memory ledger of events
-- State rebuilding of counter from ledger history
-- Multi event handling. (1 command can produce multiple events.)
-- Supercharged counting state dispatched using elixir protocols
-
-### Lottery Corp
-First example, builds entities on top of GenServer
-
-- [Motivational talk for modelling time properly](https://www.youtube.com/watch?v=Nhz5jMXS8gE)
-- [Acid 2.0](https://lostechies.com/jimmybogard/2013/06/06/acid-2-0-in-action/)
-- [Bloom project](http://boom.cs.berkeley.edu/)
--
-
-https://www.youtube.com/watch?v=66bU45vVF00 talk on bloom
-
-
-task based UI is a good argument for CQRS and/or event systems
-
-https://cqrs.wordpress.com/documents/task-based-ui/
-virtual-strategy.com/2014/11/20/utilizing-task-driven-ui-create-high-performing-and-scalable-business-software/
-http://www.uxmatters.com/mt/archives/2014/12/task-driven-user-interfaces.php
+- Counter using Protocols
+  - Linked all events created to the command that created them. command id being the transaction and idempotency id is a possibility
+  - Can do protocols with a Global entity module. Implement protocol on null struct to handle create messages
+  - Implement protocol on others for each state.
+  - Most things don't change that much so it's a lot of struct typing for little benefit, shows that everything can be types but has not checking of those types
+- Pachyderm/Pachyderm
+  - Trying to implement set/unset adjustments, maybe makes it easier to query but too much overhead, reimplimenting datomic
+- Top level
+  - Pessimistic lock by taking DB lock, lock can be lost while processing continues. see forum discussion. https://elixirforum.com/t/an-experimental-implementation-of-actors-that-do-not-die/14608/11
+  - Ecosystem seems passable name for grouping of entities though.
+  - Check ecosystems exhaust function for walk through, lot's of notes

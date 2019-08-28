@@ -1,7 +1,0 @@
-  db:
-    image: "postgres:11.2"
-    environment:
-      - POSTGRES_USER=elmer
-      - POSTGRES_PASSWORD=patchwork
-    ports:
-      - 5432:5432
