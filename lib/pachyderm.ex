@@ -1,5 +1,5 @@
 defmodule Pachyderm do
-  def call(reference, message, config) do
+  def call(reference, message, config \\ %{}) do
     {:ok, worker} =
       case Pachyderm.EntitySupervisor.start_worker(Pachyderm.EntitySupervisor, reference) do
         {:ok, pid} ->
