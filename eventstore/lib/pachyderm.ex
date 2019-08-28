@@ -1,13 +1,21 @@
 defmodule Pachyderm do
-  def deliver(supervisor, entity, message) do
+  def send(reference, message, config) do
     # Probably handle started or not in the top level BECAUSE queries wouldn't
-    {:ok, worker} = Pachyderm.EntitySupervisor.start_worker(supervisor, entity)
-    Pachyderm.EntityWorker.dispatch(worker, message)
+    {:ok, worker} =
+      case Pachyderm.EntitySupervisor.start_worker(Pachyderm.EntitySupervisor, reference) do
+        {:ok, pid} ->
+          {:ok, pid}
+
+        {:error, {:already_started, pid}} ->
+          {:ok, pid}
+      end
+
+    Pachyderm.EntityWorker.dispatch(worker, message, config)
   end
 
   # This might not survive as a feature, just read from event source
-  # def follow(supervisor, entity, cursor) do
-  #   {:ok, pid} = Pachyderm.EntitySupervisor.start_worker(supervisor, entity)
+  # def follow(supervisor, reference, cursor) do
+  #   {:ok, pid} = Pachyderm.EntitySupervisor.start_worker(supervisor, reference)
   #   GenServer.call(pid, {:follow, cursor})
   # end
 

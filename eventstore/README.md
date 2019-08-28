@@ -1,7 +1,6 @@
 # Pachyderm
 
-**Safely implement actors as if they where the only one in existence.**
-A virtual/immortal/durable/resilient actor "always exists" and "never fails"
+A virtual/immortal/durable/resilient/global actor "always exists" and "never fails"
 
 ## Usage
 
@@ -16,9 +15,8 @@ defmodule MyApp.Counter do
   alias MyApp.Counter.{Increased, ...}
 
   # Callbacks
-  @initial_state %{value: 0}
   def init() do
-    @initial_state
+    %{count: 0}
   end
 
   def handle(%Increment{}, _state) do
@@ -26,17 +24,14 @@ defmodule MyApp.Counter do
     {:ok, events}
   end
 
-  def update(%Increased{amount: amount}, state = %{value: current}) do
-    state = %{state | value: current + amount}
+  def update(%Increased{amount: amount}, state = %{count: current}) do
+    state = %{state | count: current + amount}
   end
 end
 ```
 
 *In event sourcing execute/apply would be the equivalent terms to handle/update.
 This library chooses to use familiar actor terminology over event source specific terminology.*
-
-<!-- Move this to later so the code example is clear -->
-A `Pachyderm.Entity` describes the behaviour of a durable actor, one that can be moved between machines and restarted in case it dies when handling a message.
 
 Both the `handle/2` and `update/2` callbacks MUST NOT create any side effects, see [Entity side effects]() for how to create side effects.
 
@@ -48,7 +43,7 @@ id = UUID.uuid4()
 reference = {type, id}
 
 {:ok, state} = Pachyderm.send(reference, %Increment{})
-# => {:ok, %{value: 1}}
+# => {:ok, %{count: 1}}
 ```
 
 *The id of an entity MUST be uuid that is unique across all entity types. There are plenty of uuids to go around and it allows for quicker lookups when starting entities*
@@ -60,10 +55,10 @@ Pachyderm dispatches these effects once the events have be committed to storage.
 
 ```elixir
 defmodule MyApp.Counter do
-  def handle(%Increment{}, %{value: value}) do
+  def handle(%Increment{}, %{count: count}) do
     events = [%Increased{amount: 1}]
 
-    if value == 9 do
+    if count == 9 do
       effects = [{MyApp.AdminMailer, %{threshold: 10}}]
       {:ok, {events, effects}}
     else
@@ -84,7 +79,7 @@ defmodule MyApp.AdminMailer do
   @admin_email "admin@myapp.example"
 
   def dispatch(%{threshold: threshold}, _config) do
-    body = "The threshold was reached at a value of #{threshold}"
+    body = "The threshold was reached at a count of #{threshold}"
 
     EmailProvider.send(@admin_email, body)
   end
@@ -221,9 +216,7 @@ mix test
 ```
 
 ## TODO
-Single application supervisor and config in send
 
-stream_name -> type, id
 Other option is a single "type" of actor with multiple creation messages, allows legacy usermodule and newuser module.
 Can have multiple message types within the entity Type space, Try with an ANY type send startX startY
 Because we have type we should have an init.

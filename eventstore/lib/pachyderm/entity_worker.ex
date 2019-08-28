@@ -1,32 +1,34 @@
 defmodule Pachyderm.EntityWorker do
   @behaviour GenServer
 
-  def start_link(entity, config) do
-    GenServer.start_link(__MODULE__, %{config: config, entity: entity}, name: {:global, entity})
+  alias Pachyderm.Entity
+  alias Pachyderm.Effect
+  alias Pachyderm.Log
+
+  @enforce_keys [
+    :reference,
+    :events,
+    :entity_state
+  ]
+
+  defstruct @enforce_keys
+
+  def start_link(reference) do
+    GenServer.start_link(__MODULE__, %{reference: reference}, name: {:global, reference})
   end
 
-  @doc false
-  def start_supervised(config, entity) do
-    start_link(entity, config)
-  end
-
-  def dispatch(worker, message) do
-    GenServer.call(worker, {:message, message})
+  def dispatch(worker, message, config) do
+    GenServer.call(worker, {:dispatch, message, config})
   end
 
   @impl GenServer
   def init(init) do
-    %{config: config, entity: entity} = init
-    {entity_module, entity_id} = entity
+    %{reference: reference} = init
 
     # If down just read from cursor.
     # By default always handle double events
-    # Is there any interruption API for if a subscription connection is lost,
-    # Do transient subscriptions work
-    :ok = EventStore.subscribe(entity_id)
-    # Need to start the subscription before hand
     {:ok, storage_events} =
-      case EventStore.read_stream_forward(entity_id, 0) do
+      case Log.subscribe(reference) do
         {:ok, storage_events} ->
           {:ok, storage_events}
 
@@ -35,50 +37,34 @@ defmodule Pachyderm.EntityWorker do
       end
 
     events = Enum.map(storage_events, & &1.data)
-    entity_state = Enum.reduce(events, nil, &entity_module.apply/2)
+    entity_state = Entity.reduce(reference, events)
 
     {:ok,
-     %{
-       entity_state: entity_state,
+     %__MODULE__{
+       reference: reference,
        # Don't think I need events, but use as count
        events: events,
-       config: config,
-       entity_module: entity_module,
-       entity_id: entity_id
+       entity_state: entity_state
      }}
   end
 
   @impl GenServer
-  def handle_call({:message, message}, _from, state) do
-    %{
-      entity_state: entity_state,
+  def handle_call({:dispatch, message, config}, _from, state) do
+    %__MODULE__{
+      reference: reference,
       events: saved_events,
-      config: config,
-      entity_module: entity_module,
-      entity_id: entity_id
+      entity_state: entity_state
     } = state
 
-    case entity_module.execute(message, entity_state) do
-      {:ok, reaction} ->
-        {actions, new_events} =
-          case reaction do
-            {actions, new_events} ->
-              {actions, new_events}
+    case Entity.handle(reference, message, entity_state) do
+      {:ok, {new_events, effects}} ->
+        :ok = Pachyderm.Log.append(reference, length(saved_events), new_events)
 
-            new_events when is_list(new_events) ->
-              {[], new_events}
-          end
-
-        entity = {entity_module, entity_id}
-        :ok = Pachyderm.Log.append(entity, length(saved_events), new_events)
         # TODO test validity of actions before saving events
         events = saved_events ++ new_events
-        entity_state = Enum.reduce(new_events, entity_state, &entity_module.apply/2)
+        entity_state = Entity.reduce(reference, new_events, entity_state)
 
-        # Could be a struct, but behaviour more sensible than protocol
-        for {action_module, action_payload} <- actions do
-          action_module.dispatch(action_payload, config)
-        end
+        :ok = Effect.dispatch_all(effects, config)
 
         state = %{state | entity_state: entity_state, events: events}
         {:reply, {:ok, entity_state}, state}
@@ -95,29 +81,22 @@ defmodule Pachyderm.EntityWorker do
     state
   end
 
-  defp catchup(
-         [%EventStore.RecordedEvent{stream_version: entity_version, data: event} | rest],
-         state = %{
-           events: events,
-           entity_state: entity_state,
-           entity_module: entity_module
-         }
-       )
-       when entity_version - length(events) == 1 do
-    events = events ++ [event]
+  defp catchup([recorded_event | rest], state) do
+    %EventStore.RecordedEvent{stream_version: entity_version, data: event} = recorded_event
+    %{reference: reference, events: events, entity_state: entity_state} = state
 
-    entity_state = Enum.reduce([event], entity_state, &entity_module.apply/2)
+    state =
+      case entity_version - length(events) do
+        diff when diff <= 0 ->
+          state
 
-    state = %{state | events: events, entity_state: entity_state}
+        1 ->
+          entity_state = Entity.reduce(reference, [event], entity_state)
+          events = events ++ [event]
 
-    catchup(rest, state)
-  end
+          %{state | events: events, entity_state: entity_state}
+      end
 
-  defp catchup(
-         [%EventStore.RecordedEvent{stream_version: entity_version, data: event} | rest],
-         state = %{events: events}
-       )
-       when length(events) >= entity_version do
     catchup(rest, state)
   end
 end
