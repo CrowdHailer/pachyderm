@@ -1,6 +1,7 @@
 defmodule Counter do
   @behaviour Pachyderm.Entity
   alias Counter.Increased
+  alias Counter.Increment
 
   def new() do
     {__MODULE__, UUID.uuid4()}
@@ -12,7 +13,7 @@ defmodule Counter do
   end
 
   @impl Pachyderm.Entity
-  def handle(:increment, state) do
+  def handle(%Increment{}, state) do
     %{count: count} = state
     events = [%Increased{amount: 1}]
 

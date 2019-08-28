@@ -1,6 +1,16 @@
 # Pachyderm - an elephant never forgets
 
-A virtual/immortal/durable/resilient/global actor "always exists" and "never fails"
+**A virtual/immortal/durable/resilient/global actor "always exists" and "never fails".**
+
+Program with actors that are durable and globally unique "in effect".
+Pachyderm calls an actor with these properties an entity.
+
+Entities are useful where there are strong consistency requirements.
+They also mitigate several of the [problems with Single Global Processes](https://keathley.io/blog/sgp.html).
+
+This idea was loosely inspired by projects like [Microsoft Orleans](https://dotnet.github.io/orleans/).
+
+Further explanation can be found in the [Design notes](#design-notes).
 
 ## Usage
 
@@ -9,12 +19,10 @@ A virtual/immortal/durable/resilient/global actor "always exists" and "never fai
 ```elixir
 defmodule MyApp.Counter do
   @behaviour Pachyderm.Entity
-  # Messages
+
   alias MyApp.Counter.{Increment, ...}
-  # Events
   alias MyApp.Counter.{Increased, ...}
 
-  # Callbacks
   def init() do
     %{count: 0}
   end
@@ -25,15 +33,14 @@ defmodule MyApp.Counter do
   end
 
   def update(%Increased{amount: amount}, state = %{count: current}) do
-    state = %{state | count: current + amount}
+    %{state | count: current + amount}
   end
 end
 ```
 
-*In event sourcing execute/apply would be the equivalent terms to handle/update.
-This library chooses to use familiar actor terminology over event source specific terminology.*
+*In event sourcing execute/apply would be the equivalent terms to handle/update.*
 
-Both the `handle/2` and `update/2` callbacks MUST NOT create any side effects, see [Entity side effects]() for how to create side effects.
+Both the `handle/2` and `update/2` callbacks MUST NOT create any side effects, see [Entity side effects](#entity-side-effects) for how to create side effects.
 
 ### Sending messages to an Entity
 
@@ -42,16 +49,16 @@ type = MyApp.Counter
 id = UUID.uuid4()
 reference = {type, id}
 
-{:ok, state} = Pachyderm.send(reference, %Increment{})
+{:ok, state} = Pachyderm.call(reference, %Increment{})
 # => {:ok, %{count: 1}}
 ```
 
-*The id of an entity MUST be uuid that is unique across all entity types. There are plenty of uuids to go around and it allows for quicker lookups when starting entities*
+*The id of an entity MUST be uuid that is unique across all entities, regardless of type.*
 
 ### Entity side effects
 
 An entity creates side effects by, optionally, returning a list of effects in addition to the the list of events.
-Pachyderm dispatches these effects once the events have be committed to storage.
+Pachyderm dispatches effects once the events have be committed to storage.
 
 ```elixir
 defmodule MyApp.Counter do
@@ -128,6 +135,8 @@ def update(%NewCount{value: new_count}, _state) do
 end
 ```
 
+The library chooses to use actor terminology over event sourcing. e.g. handle vs execute.
+
 ### Globally unique events, NOT processes.
 
 There may be more than one worker process alive for an entity at any given time.
@@ -143,7 +152,7 @@ This also means the library should work just as well in an unclustered environme
 Note in an unclustered setup, it is possible that a worker for an entity gets started on every machine.
 In such a case scaling the number of machines wouldn't reduce load.
 
-### Described side effects
+### Deferred side effects
 
 All side effects from handling a message must happen after events are committed.
 
@@ -278,20 +287,20 @@ Probably if latency is a problem, the best option is sticky sessions so normal l
 
 I think we should stick with the simple for a while, most of the issues are for high performace cases.
 
-#### Can Worker inactivity timeouts be a global setting?
+### Can Worker inactivity timeouts be a global setting?
 
 A system where all entities can be active could have no timeouts, entities only restarted on deploy.
 In reality I think an entity is likely to know when it is no longer going to be activated. However even these cases might have the end state queried for some time.
 
-#### Should it be possible to have effects without events?
+### Should it be possible to have effects without events?
 
 I can't think of any good thing that will come out of this, it basically just skips all checks.
 
-#### Should calculated state be one of the arguments to effect dispatch?
+### Should calculated state be one of the arguments to effect dispatch?
 
 This is another place where state can be worked out twice, in dispatch and update
 
-#### Non global address space using network_id
+### Non global address space using network_id
 
 It would be good to start more than one `EntitySupervisor` and have separate interacting environments (ecosystems) of entities.
 One way to handle this would be to have a network_id id column in EventStore and have all interaction with the DB scoped to a specific network_id.
