@@ -1,7 +1,0 @@
-<h1>The log</h1>
-
-<ul>
-<%= for event <- @log do %>
-<li><%= as_string event %></li>
-<% end %>
-</ul>
