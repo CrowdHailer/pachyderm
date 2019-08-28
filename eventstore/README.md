@@ -88,44 +88,43 @@ end
 
 *The config value can be passed as a third argument to `Pachyderm.send`.*
 
-## Entities not Processes
+
+## Testing
+
+```
+docker-compose up
+mix do event_store.drop, event_store.create, event_store.init
+mix test
+```
+
+## Design notes
+
+### Entities vs Processes
 
 The core computational unit in Pachyderm is an Entity.
-These are also actors, i.e. they are a primitive of concurrent computation.
 
-All messages handled by an entity see the up to date state of that actor.
-The state history of an entity has a single well defined order.
+Entities, like processes are actors, i.e. they are a primitive of concurrent computation.
+- All messages handled by an entity see the latest state of that entity.
+- The state history of an entity has a single, well defined order.
 
-An entity differs from a process because it can be stopped, restarted and moved between machines.
+An entity differs from a process because it can be restarted and moved between machines.
 
 ### Events as state primitive
 
 The underlying storage required by Pachyderm is an append only log.
 For this reason an event based API is exposed, rather than one based on the current state.
 
-```elixir
-def handle(message, state) do
-  # ...
-  {:ok, [event1, event2]}
-end
-
-def apply(event, state) do
-  # ...
-  new_state
-end
-```
-
 It is possible to use this model for a state based system by having all events be replace state events.
+For the counter example this could look like.
 
 ```elixir
-def handle(message, state) do
-  # ...
-  {:ok, [replace_state_event]}
+def handle(%Increment{}, %{count: current}) do
+  events = [%NewCount{value: current + 1}]
+  {:ok, events}
 end
 
-def apply(replace_state_event, _state) do
-  # ...
-  replace_state_event
+def update(%NewCount{value: new_count}, _state) do
+  %{count: new_count}
 end
 ```
 
@@ -133,48 +132,47 @@ end
 
 There may be more than one worker process alive for an entity at any given time.
 This does not break any guarantees because a message is not considered handled by an entity until the events are committed to storage.
-All storage backends must expose an optimistic concurrency control mechanism.
+**All storage backends must expose an optimistic concurrency control mechanism.**
 
-For efficiency purposes the library will reuse running workers for processing messages to a given entity.
-This uses :global.
-This is only to save starting processes, all the guarantees are handled at the storage layer.
+Processing messages for a given entity will be handled by running workers where possible.
+Workers are registered using `:global`.
+
+Worker registration is only to save starting processes, all the guarantees are handled at the storage layer.
 This also means the library should work just as well in an unclustered environment.
-However in this case it is possible that a worker for an entity gets started on every machine, so scaling machines wouldn't reduce load.
+
+Note in an unclustered setup, it is possible that a worker for an entity gets started on every machine.
+In such a case scaling the number of machines wouldn't reduce load.
 
 ### Described side effects
 
-All side effects from handling a message (message A) must happen after events are committed.
-If the events fail to commit then the message (message B) that did create those events is the one that is considered handled at that point in time.
-Message A is considered lost, if reliable delivery is required then retries and message acknowledgement can be layered on top
-Most importantly side effects associated from handling message A must not exist, only those from handling message B
+All side effects from handling a message must happen after events are committed.
 
-Side effects that should result from handling a message should be returned from the `handle` function.
-Pachyderm will run this after successfully committing events.
+For example.
+- Two messages (message A) and (message B) are processed concurrently, potentially on two node that cannot communicate.
+- The events from one message (message A) are committed to storage successfully.
+- Events from the other message (message B) cannot be saved, as these events were calculated from a stale entity state.
+- **Side effects from handling message B must not exist, only the effects from handling message A**
+- Message B is considered lost, if reliable delivery is required then retries and message acknowledgement can be layered on top
 
-```elixir
-def handle(%SignUp{email: email}, state) do
-  # ...
-  events = %AccountCreated{email: email}
-  effects = {MyApp.Mailer, %WelcomeEmail{email: email}}
-  {:ok, {effects, events}}
-end
-```
+The Pachyderm effects API exists to allow Entities to interact with other parts of the system in a safe manner.
 
-Once events are committed, `MyApp.Mailer.dispatch(message, config)` will be called.
+It is up to the developer to make sure no side effects happen in the `handle` function.
+Elixir/erlang cannot enforce this.
 
-It is up to the implementer to make sure no side effects happen in the `execute` function.
-Elixir/erlang cannot guarantee that something has not been done.
+##### Question
 
 I don't believe there is any harm in having a sidecause in the handle function,
 such as generating a random number or getting the current date.
 It may be easier to work with only pure functions, but I am not sure it is necessary (Needs further thought)
+
+##### Message vs Event Based
 
 I consider all effects as a message to be sent somewhere, hence why the function on Mailer is called dispatch rather than run/execute
 
 There are discussions of event vs message based systems online.
 This is a message based approach, the event based approach would be to have sideeffects derrived from following the event log.
 
-Both approaches have there guarantees.
+Both approaches have there advantages.
 - Message based moves more logic into the entity (it would have existed in subscribers in an event system)
   This allows more of an application to be tested at a pure level inside the entity functions.
 - Message based is more aligned with the erlang process model for familiarity
@@ -192,47 +190,120 @@ There is no guarantee that a side effect will run successfully, the real world d
 If side effects are considered as messages out then it is always possible they can be lost.
 
 This is also fine the actor model makes no guarantees about message delivery.
-Retries, timeouts and acknowledgement can all be tried on top.
+Retries, timeouts and acknowledgement can all be layered on top.
 
 It might be required to have a reliable timeout mechanism. (maybe not, needs further thought)
 So when an entity is restarted any existing timers should be checked.
 Process
+
 When writing to a database all events will be written in a single transaction.
 That transaction could be left running until all the sideeffect handlers have run,
 if these where to write to a task queue in the same transaction, then sideeffects would be reliably retryable.
 
-### sync queries
+### Use Entity references as side effects
+
+It would be easy to return `{reference, message}` from a handle function.
+The assumption here is that the dispatch action should be to send the message to the referred to entity.
+
+This has not been done yet. I am unsure if there is a sensible default for retrying to send the message/task durability
+Perhaps it would work if there could be exactly once semantics by marking the task as done in the same transaction as the receiving entity receives events.
+
+Tasks that crash should be marked as crashed for a specific version of the module, if it changes they should automatically be retried.
+
+### Sync Snapshots for Entity lookup
+
 There should be a way of committing snapshot/query module in the same transaction
+Currently this is entity_state but could be working_state
 
-Internal state working state activate/execute
-commanded rebuild before subscribe?
+### Entity references
 
-## Test
+All entities can be addressed by their reference, this is a combination of type and id.
+
+This was the most pragmatic approach, when starting out it is intuitive to ascribe types to entities.
+One of the problems with entity types is that entities last forever and so the concept of type might evolve overtime.
+
+It is possible to have a system with only one type of entity and have the event history fully describes the state of an entity including it's type.
+This is however unwieldy, the behaviour for all entity types ends up in a single callback module.
+
+Consideration of this issue is why entities are uniquely identified by their id only.
+It allows systems to evolve.
+Entities that were created from one module can be, in the systems future, handled by multiple modules.
+For example the `User` module could evolve to `LegacyUser` and `NewUser` depending on which API endpoints are used to interact with the system.
+
+Performance also improves by limiting entity id's to `uuid4` only.
+
+### Return/Reply values
+
+There are two options for this
+
+#### Result return values
 
 ```
-docker-compose up
-mix do event_store.drop, event_store.create, event_store.init
-mix test
+{:ok, [event]}
+{:ok, {[event], [effect]}}
+{:error, reason}
 ```
+- Limits options, potentially a good thing.
+- Makes it clear that returning an error value to a caller means no events were created.
+
+#### GenServer inspired reply values
+
+```
+{:reply, {:ok, anything}, [event]}
+{:reply, {:ok, anything}, [event], [effect]}
+{:reply, {:error, reason}, [], []}
+```
+- Can have error response and no events. Good/Bad?
+- Reply often based on the state, state not calculated until after update function called, often end up working things out twice.
+- Add another tuple argument for continuations/timeout. Might be very ugly in OK case
+
+#### Sending full state as part of reply value
+
+The simplest API is to have the new state returned when sending a message to an entity.
+
+Sending the full state back is wasteful if it, is large, is not needed, is transferred between machines.
+An explicit reply can be set in `handle` but what if clients sending the same update what different views.
+
+To reduce the amount sent there could be a Query API where an anonymous function is sent and only that result returned.
+This separates logic from the entity and so a :query callback might be better. clients just send a simple/expected query and the result is generated from that.
+
+If on separate nodes you might not want to send message then query, requiring some kind of message then query interface
+If sending only a reduced value back the new cursor (stream_version) is probably the most useful. It allows a client to listen for all events.
+
+To reduce messages between nodes could have a cache process on every node, queries only go to local, commands are sent via local which waits for event before running query and returning to caller.
+A follower on every node messes up scaling, more node doesn't increase free up memory.
+Also it doesn't really match a dist erl environment.
+My assumption is extra nodes are added for more memory, latency of sending messages between nodes is not important.
+Probably if latency is a problem, the best option is sticky sessions so normal lookup from Pachyderm results in intra node communicate in most cases.
+
+I think we should stick with the simple for a while, most of the issues are for high performace cases.
+
+#### Can Worker inactivity timeouts be a global setting?
+
+A system where all entities can be active could have no timeouts, entities only restarted on deploy.
+In reality I think an entity is likely to know when it is no longer going to be activated. However even these cases might have the end state queried for some time.
+
+#### Should it be possible to have effects without events?
+
+I can't think of any good thing that will come out of this, it basically just skips all checks.
+
+#### Should calculated state be one of the arguments to effect dispatch?
+
+This is another place where state can be worked out twice, in dispatch and update
+
+#### Non global address space using network_id
+
+It would be good to start more than one `EntitySupervisor` and have separate interacting environments (ecosystems) of entities.
+One way to handle this would be to have a network_id id column in EventStore and have all interaction with the DB scoped to a specific network_id.
+Different network identifier should be able to use different pools/db connections.
+
+In a global network of entities, creating a reference could take the environment as an argument so giving separate id's.
+This is rather reliant on the developer doing the right thing repetitavly.  
 
 ## TODO
 
-Other option is a single "type" of actor with multiple creation messages, allows legacy usermodule and newuser module.
-Can have multiple message types within the entity Type space, Try with an ANY type send startX startY
-Because we have type we should have an init.
-If waiting on specific promises MUST terminate if nothing to await on.
-Single global process
-use uuid, it's much faster a join table can be made if needed
-https://yiming.dev/blog/2019/08/16/use-return-value-to-defer-decisions/
+- If waiting on specific promises, entity MUST terminate if nothing to await on.
 
-- :ok + :error vs reply
-  reply means working out the state twice in most cases, always sending the state might be a large state, and over network
-  caller could send function for reduced state,
-  I want as much logic testable in the main state BUT clients might have different requirements
-  send_and_query_function reply: option in ok
-  return cursor or transaction_id
-- could have a cache process on every node, queries only go to local, follower on every node musses up scaling. My assumption is extra nodes are added for more memory, communication time between in memory on nodes is not important.
-- have a get function you pass annon function to OR a query callback. query callback makes testing without a process easier.
-- potentially add a network_id to the reference, start all entity supervisors under network supervisors in pachyderm app
-- Different network identifier should be able to use different pools/db connections
-- No automatic dispatch for entities, retry strategy is optionall, task durability is optional.
+- Single global process, some discussion on this, is it a safe way to have single global processes?
+
+https://yiming.dev/blog/2019/08/16/use-return-value-to-defer-decisions/
