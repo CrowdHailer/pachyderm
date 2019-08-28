@@ -1,4 +1,4 @@
-# Pachyderm
+# Pachyderm - an elephant never forgets
 
 A virtual/immortal/durable/resilient/global actor "always exists" and "never fails"
 
@@ -307,3 +307,17 @@ This is rather reliant on the developer doing the right thing repetitavly.
 - Single global process, some discussion on this, is it a safe way to have single global processes?
 
 https://yiming.dev/blog/2019/08/16/use-return-value-to-defer-decisions/
+
+Old stuff https://github.com/CrowdHailer/pachyderm/commit/bd852b376e58c318183a60f1b8ddf18ada1fe6cc
+
+- Counter using Protocols
+  - Linked all events created to the command that created them. command id being the transaction and idempotency id is a possibility
+  - Can do protocols with a Global entity module. Implement protocol on null struct to handle create messages
+  - Implement protocol on others for each state.
+  - Most things don't change that much so it's a lot of struct typing for little benefit, shows that everything can be types but has not checking of those types
+- Pachyderm/Pachyderm
+  - Trying to implement set/unset adjustments, maybe makes it easier to query but too much overhead, reimplimenting datomic
+- Top level
+  - Pessimistic lock by taking DB lock, lock can be lost while processing continues. see forum discussion. https://elixirforum.com/t/an-experimental-implementation-of-actors-that-do-not-die/14608/11
+  - Ecosystem seems passable name for grouping of entities though.
+  - Check ecosystems exhaust function for walk through, lot's of notes
