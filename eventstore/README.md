@@ -1,6 +1,97 @@
 # Pachyderm
 
 **Safely implement actors as if they where the only one in existence.**
+A virtual/immortal/durable/resilient actor "always exists" and "never fails"
+
+## Usage
+
+### Defining an Entity
+
+```elixir
+defmodule MyApp.Counter do
+  @behaviour Pachyderm.Entity
+  # Messages
+  alias MyApp.Counter.{Increment, ...}
+  # Events
+  alias MyApp.Counter.{Increased, ...}
+
+  # Callbacks
+  @initial_state %{value: 0}
+  def init() do
+    @initial_state
+  end
+
+  def handle(%Increment{}, _state) do
+    events = [%Increased{amount: 1}]
+    {:ok, events}
+  end
+
+  def update(%Increased{amount: amount}, state = %{value: current}) do
+    state = %{state | value: current + amount}
+  end
+end
+```
+
+*In event sourcing execute/apply would be the equivalent terms to handle/update.
+This library chooses to use familiar actor terminology over event source specific terminology.*
+
+<!-- Move this to later so the code example is clear -->
+A `Pachyderm.Entity` describes the behaviour of a durable actor, one that can be moved between machines and restarted in case it dies when handling a message.
+
+Both the `handle/2` and `update/2` callbacks MUST NOT create any side effects, see [Entity side effects]() for how to create side effects.
+
+### Sending messages to an Entity
+
+```elixir
+type = MyApp.Counter
+id = UUID.uuid4()
+reference = {type, id}
+
+{:ok, state} = Pachyderm.send(reference, %Increment{})
+# => {:ok, %{value: 1}}
+```
+
+*The id of an entity MUST be uuid that is unique across all entity types. There are plenty of uuids to go around and it allows for quicker lookups when starting entities*
+
+### Entity side effects
+
+An entity creates side effects by, optionally, returning a list of effects in addition to the the list of events.
+Pachyderm dispatches these effects once the events have be committed to storage.
+
+```elixir
+defmodule MyApp.Counter do
+  def handle(%Increment{}, %{value: value}) do
+    events = [%Increased{amount: 1}]
+
+    if value == 9 do
+      effects = [{MyApp.AdminMailer, %{threshold: 10}}]
+      {:ok, {events, effects}}
+    else
+      {:ok, events}
+    end
+  end
+end
+```
+
+Side effects have at most once semantics. This is because the events are committed before dispatching effects and it is always possible for the dispatch to fail/crash.
+
+*A future feature should allow persisting effects to a task queue in the same transaction as events are committed.*
+
+```elixir
+defmodule MyApp.AdminMailer do
+  @behaviour Pachyderm.Effect
+
+  @admin_email "admin@myapp.example"
+
+  def dispatch(%{threshold: threshold}, _config) do
+    body = "The threshold was reached at a value of #{threshold}"
+
+    EmailProvider.send(@admin_email, body)
+  end
+end
+```
+
+*The config value can be passed as a third argument to `Pachyderm.send`.*
 
 ## Entities not Processes
 
@@ -128,3 +219,27 @@ docker-compose up
 mix do event_store.drop, event_store.create, event_store.init
 mix test
 ```
+
+## TODO
+Single application supervisor and config in send
+
+stream_name -> type, id
+Other option is a single "type" of actor with multiple creation messages, allows legacy usermodule and newuser module.
+Can have multiple message types within the entity Type space, Try with an ANY type send startX startY
+Because we have type we should have an init.
+If waiting on specific promises MUST terminate if nothing to await on.
+Single global process
+use uuid, it's much faster a join table can be made if needed
+https://yiming.dev/blog/2019/08/16/use-return-value-to-defer-decisions/
+
+- :ok + :error vs reply
+  reply means working out the state twice in most cases, always sending the state might be a large state, and over network
+  caller could send function for reduced state,
+  I want as much logic testable in the main state BUT clients might have different requirements
+  send_and_query_function reply: option in ok
+  return cursor or transaction_id
+- could have a cache process on every node, queries only go to local, follower on every node musses up scaling. My assumption is extra nodes are added for more memory, communication time between in memory on nodes is not important.
+- have a get function you pass annon function to OR a query callback. query callback makes testing without a process easier.
+- potentially add a network_id to the reference, start all entity supervisors under network supervisors in pachyderm app
+- Different network identifier should be able to use different pools/db connections
+- No automatic dispatch for entities, retry strategy is optionall, task durability is optional.
