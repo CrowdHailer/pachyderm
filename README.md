@@ -292,6 +292,8 @@ I think we should stick with the simple for a while, most of the issues are for 
 A system where all entities can be active could have no timeouts, entities only restarted on deploy.
 In reality I think an entity is likely to know when it is no longer going to be activated. However even these cases might have the end state queried for some time.
 
+There should be a Stop event that caches final snapshot.
+
 ### Should it be possible to have effects without events?
 
 I can't think of any good thing that will come out of this, it basically just skips all checks.
