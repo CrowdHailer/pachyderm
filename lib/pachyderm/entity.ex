@@ -40,6 +40,9 @@ defmodule Pachyderm.Entity do
 
       {:ok, {events, effects}} ->
         {:ok, {events, effects}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

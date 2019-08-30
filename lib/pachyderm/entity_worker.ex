@@ -68,6 +68,9 @@ defmodule Pachyderm.EntityWorker do
 
         state = %{state | entity_state: entity_state, events: events}
         {:reply, {:ok, entity_state}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
