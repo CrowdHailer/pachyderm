@@ -1,4 +1,9 @@
 defmodule Pachyderm.Log do
+  def append(_entity, _expected_version, []) do
+    # TODO do you actually want a warning about not being in up to date if saving would fail?
+    :ok
+  end
+
   def append(entity, expected_version, new_events) do
     {_module, entity_id} = entity
 
