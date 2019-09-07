@@ -31,6 +31,6 @@ cache:
   directories:
     - _build
 before_cache:
-  # should only keep the dialyzer artifacts
   - mix clean
-  - mix deps.clean --all
+  # # should only keep the dialyzer artifacts
+  # - mix deps.clean --all
