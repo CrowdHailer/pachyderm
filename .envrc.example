@@ -1,0 +1,4 @@
+# https://direnv.net/
+export EVENTSTORE_PG_USER=postgres
+export EVENTSTORE_PG_PASS=postgres
+# export EVENTSTORE_PG_DB=pachyderm_test

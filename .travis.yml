@@ -1,4 +1,6 @@
 language: elixir
+services:
+  - postgresql
 matrix:
   include:
     - otp_release: 20.3
@@ -9,9 +11,14 @@ matrix:
       elixir: 1.8.2
 env:
   - MIX_ENV=test
+  - EVENTSTORE_PG_HOST=localhost
+  - EVENTSTORE_PG_USER=postgres
+  - EVENTSTORE_PG_PASS=
+  - EVENTSTORE_PG_DB=pachyderm_test
 before_script:
   - mix local.hex --force
   - mix deps.get
+  - mix do event_store.drop, event_store.create, event_store.init
   # - for dir in ./extensions/*; do ( cd "$dir" && mix deps.get ); done
 script:
   - mix test --trace
