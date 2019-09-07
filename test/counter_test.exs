@@ -9,7 +9,6 @@ defmodule CounterTest do
     config = %{mailer: %{test: self()}}
     :ok = EventStore.subscribe(elem(first_counter, 1) |> IO.inspect(), mapper: & &1.data)
     # :ok = EventStore.subscribe(elem(first_counter, 1) |> IO.inspect())
-    Process.sleep(1500)
     assert {:ok, %{count: 1}} = Pachyderm.call(first_counter, %Increment{}, config)
     assert {:ok, %{count: 2}} = Pachyderm.call(first_counter, %Increment{}, config)
 

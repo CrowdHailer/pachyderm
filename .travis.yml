@@ -1,0 +1,38 @@
+language: elixir
+services:
+  - postgresql
+matrix:
+  include:
+    - otp_release: 20.3
+      elixir: 1.7.4
+    - otp_release: 21.3
+      elixir: 1.8.1
+    - otp_release: 22.0
+      elixir: 1.8.2
+env:
+  global:
+    - MIX_ENV=test
+    - EVENTSTORE_PG_HOST=localhost
+    - EVENTSTORE_PG_USER=postgres
+    - EVENTSTORE_PG_PASS=
+    - EVENTSTORE_PG_DB=pachyderm_test
+before_script:
+  - mix local.hex --force
+  - mix deps.get
+  - mix deps.compile
+  - mix compile
+  - mix do event_store.drop, event_store.create, event_store.init
+  # - for dir in ./extensions/*; do ( cd "$dir" && mix deps.get ); done
+script:
+  - mix test --trace
+  # - mix format --check-formatted
+  # - mix dialyzer --halt-exit-status
+  # - for dir in ./extensions/*; do ( cd "$dir" && mix test ); done
+  # - for dir in ./extensions/*; do ( cd "$dir" && mix format --check-formatted ); done
+cache:
+  directories:
+    - _build
+before_cache:
+  - mix clean
+  # # should only keep the dialyzer artifacts
+  # - mix deps.clean --all
