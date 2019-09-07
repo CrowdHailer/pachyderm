@@ -2,7 +2,7 @@
 
 **A virtual/immortal/durable/resilient/global actor "always exists" and "never fails".**
 
-[![Build Status](https://secure.travis-ci.org/CrowdHailer/pachyderm.svg?branch=master)](https://travis-ci.org/CrowdHailer/pachyderm)
+[![Build Status](https://secure.travis-ci.com/CrowdHailer/pachyderm.svg?branch=master)](https://travis-ci.com/CrowdHailer/pachyderm)
 
 Program with actors that are durable and globally unique "in effect".
 Pachyderm calls an actor with these properties an entity.
