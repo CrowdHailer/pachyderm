@@ -19,6 +19,8 @@ env:
 before_script:
   - mix local.hex --force
   - mix deps.get
+  - mix deps.compile
+  - mix compile
   - mix do event_store.drop, event_store.create, event_store.init
   # - for dir in ./extensions/*; do ( cd "$dir" && mix deps.get ); done
 script:
