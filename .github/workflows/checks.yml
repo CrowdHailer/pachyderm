@@ -1,0 +1,15 @@
+name: Pachyderm Checks
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    # - name: Build the stack
+    #   run: docker-compose up -d
+    - name: setup
+      run: docker-compose run pachyderm mix do event_store.create, event_store.init
+    - name: Test
+      run: docker-compose run pachyderm mix test
