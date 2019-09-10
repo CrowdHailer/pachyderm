@@ -1,3 +1,20 @@
+version: '2'
+
+services:
+  pachyderm:
+    build:
+      context: "."
+      dockerfile: "Dockerfile"
+    depends_on:
+      - db
+    environment:
+      - EVENTSTORE_PG_HOST=db
+      # - EVENTSTORE_PG_USER=postgres
+      # - EVENTSTORE_PG_PASS=
+      - EVENTSTORE_PG_DB=pachyderm_test
+    # Only mount volumes locally
+    # volumes:
+      # - .:/opt/app
   db:
     image: "postgres:11.2"
     environment:
